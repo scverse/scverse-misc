@@ -1,7 +1,2 @@
-from importlib.metadata import version
-
-from . import pl, pp, tl
-
-__all__ = ["pl", "pp", "tl"]
-
-__version__ = version("scverse-misc")
+from ._extensions import ExtensionNamespace, make_register_namespace_decorator
+from ._version import __version__, __version_tuple__

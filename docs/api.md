@@ -1,39 +1,22 @@
 # API
 
-## Preprocessing
-
 ```{eval-rst}
-.. module:: scverse_misc.pp
 .. currentmodule:: scverse_misc
-
-.. autosummary::
-    :toctree: generated
-
-    pp.basic_preproc
-    pp.elaborate_example
+.. toctree::
 ```
 
-## Tools
+## Extensions
 
-```{eval-rst}
-.. module:: scverse_misc.tl
-.. currentmodule:: scverse_misc
-
+``` {eval-rst}
 .. autosummary::
     :toctree: generated
 
-    tl.basic_tool
+    make_register_namespace_decorator
 ```
-
-## Plotting
-
-```{eval-rst}
-.. module:: scverse_misc.pl
-.. currentmodule:: scverse_misc
-
+Types used by the former:
+``` {eval-rst}
 .. autosummary::
     :toctree: generated
 
-    pl.basic_plot
-    pl.BasicClass
+    ExtensionNamespace
 ```
