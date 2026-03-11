@@ -11,6 +11,7 @@ buck-out/
 .venv/
 __pycache__/
 .*cache/
+/src/scverse_misc/_version.py
 
 # Distribution / packaging
 /dist/

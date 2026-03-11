@@ -1,0 +1,43 @@
+{
+  "template": "https://github.com/scverse/cookiecutter-scverse",
+  "commit": "ade99079c9508247bb14e9aa52af847a991675a5",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "scverse-misc",
+      "package_name": "scverse_misc",
+      "project_description": "Miscellaneous utility code used by scverse packages",
+      "author_full_name": "Ilia Kats",
+      "author_email": "i.kats@dkfz.de",
+      "github_user": "scverse",
+      "github_repo": "scverse-misc",
+      "license": "BSD 3-Clause License",
+      "ide_integration": false,
+      "_copy_without_render": [
+        ".github/workflows/build.yaml",
+        ".github/workflows/test.yaml",
+        "docs/_templates/autosummary/**.rst"
+      ],
+      "_exclude_on_template_update": [
+        "CHANGELOG.md",
+        "LICENSE",
+        "README.md",
+        "docs/api.md",
+        "docs/index.md",
+        "docs/notebooks/example.ipynb",
+        "docs/references.bib",
+        "docs/references.md",
+        "src/**",
+        "tests/**"
+      ],
+      "_render_devdocs": false,
+      "_jinja2_env_vars": {
+        "lstrip_blocks": true,
+        "trim_blocks": true
+      },
+      "_template": "https://github.com/scverse/cookiecutter-scverse",
+      "_commit": "ade99079c9508247bb14e9aa52af847a991675a5"
+    }
+  },
+  "directory": null
+}
