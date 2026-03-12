@@ -23,6 +23,7 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "pandas>=1",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
@@ -36,10 +37,7 @@ dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-test = [
-  "coverage>=7.10",
-  "pytest",
-]
+test = [ "coverage>=7.10", "numpy", "pytest" ]
 doc = [
   "ipykernel",
   "ipython",
