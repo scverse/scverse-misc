@@ -1,9 +1,11 @@
 # scverse-misc
 
+[![PyPI][badge-pypi]][pypi]
 [![Tests][badge-tests]][tests]
 [![codecov][badge-codecov]][codecov]
 [![Documentation][badge-docs]][documentation]
 
+[badge-pypi]: https://img.shields.io/pypi/v/scverse-misc
 [badge-tests]: https://github.com/scverse/scverse-misc/actions/workflows/test.yaml/badge.svg
 [badge-codecov]: https://codecov.io/gh/scverse/scverse-misc/graph/badge.svg?token=EUH9BZZK7T
 [badge-docs]: https://img.shields.io/readthedocs/scverse-misc
