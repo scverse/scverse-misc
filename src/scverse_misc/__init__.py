@@ -1,3 +1,2 @@
 from ._extensions import ExtensionNamespace, make_register_namespace_decorator
-from ._pandas_utils import try_convert_dataframe_to_numpy_dtypes, try_convert_series_to_numpy_dtype
 from ._version import __version__, __version_tuple__

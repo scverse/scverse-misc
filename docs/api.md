@@ -20,13 +20,3 @@ Types used by the former:
 
     ExtensionNamespace
 ```
-
-## Pandas utility functions
-
-``` {eval-rst}
-.. autosummary::
-    :toctree: generated
-
-    try_convert_series_to_numpy_dtype
-    try_convert_dataframe_to_numpy_dtypes
-```
