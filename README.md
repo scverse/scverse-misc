@@ -52,7 +52,7 @@ If you found a bug, please use the [issue tracker][].
 [scverse discourse]: https://discourse.scverse.org/
 [issue tracker]: https://github.com/scverse/scverse-misc/issues
 [tests]: https://github.com/scverse/scverse-misc/actions/workflows/test.yaml
-[codecov]: https://codecov.io/gh/bioFAM/mofaflex
+[codecov]: https://codecov.io/gh/scverse/scverse-misc
 [documentation]: https://scverse-misc.readthedocs.io
 [changelog]: https://scverse-misc.readthedocs.io/en/latest/changelog.html
 [api documentation]: https://scverse-misc.readthedocs.io/latest/api.html
