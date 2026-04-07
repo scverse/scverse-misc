@@ -23,7 +23,6 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "pandas>=1",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
