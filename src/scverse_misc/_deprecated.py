@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import sys
 from contextlib import suppress
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, LiteralString, TypeVar
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as _deprecated
@@ -16,15 +15,18 @@ if TYPE_CHECKING:
     F = TypeVar("F", bound=Callable)
 
 
-@dataclass(frozen=True)
-class Deprecation:
-    """Utility class storing information on deprecated functionality."""
+class Deprecation(str):
+    """Utility class storing information on deprecated functionality.
 
-    version_deprecated: str
-    """The version of the package where the functionality was deprecated."""
+    Args:
+        version_deprecated: The version of the package where the functionality was deprecated.
+        msg: The deprecation message.
+    """
 
-    msg: str | None = None
-    """The deprecation message."""
+    def __new__(cls, version_deprecated: str, msg: str = "") -> LiteralString:
+        obj = super().__new__(cls, msg)
+        obj.version_deprecated = version_deprecated
+        return obj
 
 
 def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) -> Callable[[F], F]:
@@ -38,7 +40,7 @@ def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) ->
         stacklevel: The stack level of the warning.
 
     Examples:
-        >>> @deprecated(Deprecation("Use bar() instead.", "0.2"))
+        >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
         ... def foo(baz):
         ...     pass
     """
@@ -63,9 +65,9 @@ def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) ->
                             raise StopIteration  # break out of both loops
 
         docmsg = f"{indentation}.. version-deprecated:: {msg.version_deprecated}"
-        if msg.msg is not None:
-            docmsg += f"\n{indentation}   {msg.msg}"
-            warnmsg += f" {msg.msg}"
+        if len(msg) is not None:
+            docmsg += f"\n{indentation}   {msg}"
+            warnmsg += f" {msg}"
 
         if doc is None:
             doc = docmsg
