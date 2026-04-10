@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from contextlib import suppress
+from inspect import getdoc
 from typing import TYPE_CHECKING, TypeVar
 
 if sys.version_info >= (3, 11):
@@ -54,27 +54,16 @@ def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) ->
         kind = "function" if func.__name__ == func.__qualname__ else "method"
         warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future."
 
-        doc = func.__doc__
-        indentation = ""
-        if doc is not None:
-            lines = doc.expandtabs().splitlines()
-            with suppress(StopIteration):
-                for line in lines[1:]:
-                    if not len(line):
-                        continue
-                    for indentation, char in enumerate(line):
-                        if not char.isspace():
-                            indentation = line[:indentation]
-                            raise StopIteration  # break out of both loops
-
-        docmsg = f"{indentation}.. version-deprecated:: {msg.version_deprecated}"
+        doc = getdoc(func)
+        docmsg = f".. version-deprecated:: {msg.version_deprecated}"
         if len(msg) is not None:
-            docmsg += f"\n{indentation}   {msg}"
+            docmsg += f"\n   {msg}"
             warnmsg += f" {msg}"
 
         if doc is None:
             doc = docmsg
         else:
+            lines = doc.splitlines()
             body = "\n".join(lines[1:])
             doc = f"{lines[0]}\n\n{docmsg}\n{body}"
         func.__doc__ = doc
