@@ -23,7 +23,7 @@ class Deprecation(str):
         msg: The deprecation message.
     """
 
-    def __new__(cls, version_deprecated: str, msg: str = "") -> LiteralString:
+    def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:
         obj = super().__new__(cls, msg)
         obj.version_deprecated = version_deprecated
         return obj
@@ -46,10 +46,8 @@ def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) ->
     """
 
     def decorate(func: F) -> F:
-        if func.__name__ == func.__qualname__:
-            warnmsg = f"The function {func.__name__} is deprecated and will be removed in the future."
-        else:
-            warnmsg = f"The method {func.__qualname__} is deprecated and will be removed in the future."
+        kind = "function" if func.__name__ == func.__qualname__ else "method"
+        warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future."
 
         doc = func.__doc__
         indentation = ""
