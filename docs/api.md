@@ -20,3 +20,12 @@ Types used by the former:
 
     ExtensionNamespace
 ```
+
+## Deprecations
+``` {eval-rst}
+.. autosummary::
+   :toctree: generated
+
+   deprecated
+   Deprecation
+```
