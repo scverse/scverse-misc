@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import sys
 from contextlib import suppress
-from typing import TYPE_CHECKING, LiteralString, TypeVar
+from typing import TYPE_CHECKING, TypeVar
+
+if sys.version_info >= (3, 11):
+    from typing import LiteralString
+else:
+    from typing_extensions import LiteralString
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as _deprecated
