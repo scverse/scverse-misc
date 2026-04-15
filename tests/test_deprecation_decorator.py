@@ -35,7 +35,7 @@ def deprecated_func(msg, docstring):
         return 42
 
     func.__doc__ = docstring
-    return deprecated(Deprecation("foo", msg))(func)
+    return deprecated(Deprecation("foo", msg or ""))(func)
 
 
 def test_deprecation_decorator(deprecated_func, docstring, msg):
