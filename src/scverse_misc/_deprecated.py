@@ -28,6 +28,8 @@ class Deprecation(str):
         msg: The deprecation message.
     """
 
+    version_deprecated: LiteralString
+
     def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:
         obj = super().__new__(cls, msg)
         obj.version_deprecated = version_deprecated
@@ -56,7 +58,7 @@ def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) ->
 
         doc = getdoc(func)
         docmsg = f".. version-deprecated:: {msg.version_deprecated}"
-        if len(msg) is not None:
+        if len(msg):
             docmsg += f"\n   {msg}"
             warnmsg += f" {msg}"
 

@@ -50,5 +50,7 @@ def test_deprecation_decorator(deprecated_func, docstring, msg):
         assert lines[0] == lines_orig[0]
         assert len(lines[1].strip()) == 0
         assert lines[2].startswith(".. version-deprecated")
-        if msg is not None:
+        if msg is None:
+            assert len(lines) == 3
+        else:
             assert lines[3] == f"   {msg}"
