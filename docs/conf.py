@@ -26,7 +26,7 @@ project = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
-urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
+urls = dict(pu.split(", ") for pu in info.get_all("Project-URL") or ())
 repository_url = urls["Source"]
 
 # The full version, including alpha/beta/rc tags
@@ -130,7 +130,7 @@ html_theme_options = {
 pygments_style = "default"
 katex_prerender = shutil.which(katex.NODEJS_BINARY) is not None
 
-nitpick_ignore = [
+nitpick_ignore: list[tuple[str, str]] = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
