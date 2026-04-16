@@ -35,7 +35,7 @@ def deprecated_func(msg, docstring):
         return 42
 
     func.__doc__ = docstring
-    return deprecated(Deprecation("foo", msg))(func)
+    return deprecated(Deprecation("foo", msg or ""))(func)
 
 
 def test_deprecation_decorator(deprecated_func, docstring, msg):
@@ -50,5 +50,7 @@ def test_deprecation_decorator(deprecated_func, docstring, msg):
         assert lines[0] == lines_orig[0]
         assert len(lines[1].strip()) == 0
         assert lines[2].startswith(".. version-deprecated")
-        if msg is not None:
+        if msg is None:
+            assert len(lines) == 3 or not lines[3].startswith("   ")
+        else:
             assert lines[3] == f"   {msg}"
