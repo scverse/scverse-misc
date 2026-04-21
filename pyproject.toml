@@ -55,7 +55,6 @@ doc = [
 ]
 
 [tool.hatch]
-build.hooks.vcs.version-file = "src/scverse_misc/_version.py"
 envs.default.installer = "uv"
 envs.default.dependency-groups = [ "dev" ]
 envs.docs.dependency-groups = [ "doc" ]

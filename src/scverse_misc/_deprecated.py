@@ -20,6 +20,9 @@ if TYPE_CHECKING:
     F = TypeVar("F", bound=Callable)
 
 
+__all__ = ["deprecated", "Deprecation"]
+
+
 class Deprecation(str):
     """Utility class storing information on deprecated functionality.
 

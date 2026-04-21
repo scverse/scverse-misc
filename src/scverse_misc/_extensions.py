@@ -9,6 +9,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Set
 
 
+__all__ = ["ExtensionNamespace", "make_register_namespace_decorator"]
+
+
 @runtime_checkable
 class ExtensionNamespace(Protocol):
     """Protocol for extension namespaces.
