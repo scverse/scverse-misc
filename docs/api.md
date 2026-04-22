@@ -7,14 +7,14 @@
 
 ## Extensions
 
-``` {eval-rst}
+```{eval-rst}
 .. autosummary::
     :toctree: generated
 
     make_register_namespace_decorator
 ```
 Types used by the former:
-``` {eval-rst}
+```{eval-rst}
 .. autosummary::
     :toctree: generated
 
@@ -22,10 +22,19 @@ Types used by the former:
 ```
 
 ## Deprecations
-``` {eval-rst}
+```{eval-rst}
 .. autosummary::
    :toctree: generated
 
    deprecated
    Deprecation
+```
+
+## Settings
+```{eval-rst}
+.. autosummary::
+  :toctree: generated
+  :template: autosummary/model.rst
+
+  Settings
 ```

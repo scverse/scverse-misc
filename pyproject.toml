@@ -24,6 +24,8 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "pydantic-settings",
+  "python-dotenv",
   # for debug logging (referenced from the issue template)
   "session-info2",
   "typing-extensions; python_version<'3.13'",
