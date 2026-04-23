@@ -12,8 +12,6 @@ from scverse_misc import Settings
 
 
 class DummySettings(Settings, exported_object_name="settings", docstring_style="google"):
-    model_config = SettingsConfigDict(validate_assignment=False)  # this should do nothing
-
     field_bool: bool = False
     """Boolean field."""
 
@@ -26,6 +24,25 @@ class DummySettings(Settings, exported_object_name="settings", docstring_style="
 @pytest.fixture
 def settings() -> DummySettings:
     return DummySettings()
+
+
+def test_defaults_override() -> None:
+    with (
+        pytest.warns(RuntimeWarning, match="validate_assignment=False"),
+        pytest.warns(RuntimeWarning, match="use_attribute_docstrings=False"),
+        pytest.warns(RuntimeWarning, match="custom env_file location"),
+    ):
+
+        class WarnSettings(Settings, exported_object_name="settings"):
+            model_config = SettingsConfigDict(
+                validate_assignment=False, use_attribute_docstrings=False, env_file="mydotenv"
+            )
+
+            field_bool: bool = False
+
+    settings = WarnSettings()
+    with pytest.raises(ValidationError):
+        settings.field_bool = 2  # type: ignore[assignment]
 
 
 def test_validate_assignment(settings: DummySettings) -> None:

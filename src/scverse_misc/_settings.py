@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import textwrap
+import warnings
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from types import GenericAlias
@@ -82,12 +83,26 @@ class Settings(BaseSettings):
         return package_name
 
     def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
-        config = getattr(subcls, "model_config", SettingsConfigDict())
+        if "model_config" in subcls.__dict__:
+            config = subcls.model_config
+            if not config.get("validate_assignment", True):
+                warnings.warn("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, stacklevel=2)
+            if not config.get("use_attribute_docstrings", True):
+                warnings.warn(
+                    "`use_attribute_docstrings=False` is not supported, overriding.", RuntimeWarning, stacklevel=2
+                )
+            if config.get("env_file") is not None:
+                warnings.warn(
+                    "Setting a custom env_file location is not supported, overriding.", RuntimeWarning, stacklevel=2
+                )
+        else:
+            config = SettingsConfigDict()
+
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
         config["env_file"] = dotenv.find_dotenv()
 
-        if not config["env_prefix"]:
+        if not config.get("env_prefix"):
             config["env_prefix"] = f"{__class__._get_packagename(subcls)}_"  # type: ignore[name-defined] # https://github.com/python/mypy/issues/4177
         subcls.model_config = config
 
