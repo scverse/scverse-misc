@@ -73,23 +73,23 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         return init_settings, env_settings, dotenv_settings
 
-    @classmethod
-    def _get_packagename(cls) -> str:
-        package_name = cls.__module__
+    @staticmethod
+    def _get_packagename(subcls: type[Settings]) -> str:
+        package_name = subcls.__module__
         dotidx = package_name.find(".")
         if dotidx > -1:
             package_name = package_name[:dotidx]
         return package_name
 
-    def __init_subclass__(cls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
-        config = getattr(cls, "model_config", SettingsConfigDict())
+    def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
+        config = getattr(subcls, "model_config", SettingsConfigDict())
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
         config["env_file"] = dotenv.find_dotenv()
 
         if not config["env_prefix"]:
-            config["env_prefix"] = f"{cls._get_packagename()}_"
-        cls.model_config = config
+            config["env_prefix"] = f"{__class__._get_packagename(subcls)}_"  # type: ignore[name-defined] # https://github.com/python/mypy/issues/4177
+        subcls.model_config = config
 
         super().__init_subclass__()
 
@@ -98,7 +98,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
-        cls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
     ) -> None:
         @contextmanager
         def override(self: Self, **kwargs: object) -> Generator[None]:
@@ -111,11 +111,11 @@ class Settings(BaseSettings):
                 for argname, argval in reversed(oldsettings.items()):
                     setattr(self, argname, argval)
 
-        cls.__doc__ = (
+        subcls.__doc__ = (
             _docstring_template.format(
-                package=cls._get_packagename(),
+                package=__class__._get_packagename(subcls),  # type: ignore[name-defined] # https://github.com/python/mypy/issues/4177
                 name=exported_object_name,
-                env_prefix=cls.model_config["env_prefix"].upper(),
+                env_prefix=subcls.model_config["env_prefix"].upper(),
             )
             + "\n\nThe following options are available:\n"
         )
@@ -124,15 +124,15 @@ class Settings(BaseSettings):
             override.__doc__ += "Args:\n"
         else:
             override.__doc__ += "Parameters\n----------\n"
-        for fname, field in cls.model_fields.items():
-            cls.__doc__ += f"""
+        for fname, field in subcls.model_fields.items():
+            subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
    :type: {_type_str(field)}
    :value: {field.default!r}\n"""
 
             description = f"(default `{field.default!r}`) "
             if field.description is not None:
-                cls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
+                subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
                 description += field.description
 
             if docstring_style == "google":
@@ -144,4 +144,4 @@ class Settings(BaseSettings):
 {fname} : {_type_str(field)}
 {textwrap.indent(description, "    ")}\n"""
 
-        cls.override = override  # type: ignore[method-assign]
+        subcls.override = override  # type: ignore[method-assign]
