@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 import pytest
 
@@ -11,16 +11,20 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 
+class Greeter(Protocol):
+    def __init__(self, obj: DummyClass) -> None: ...
+    def greet(self) -> str: ...
+
+
 class DummyClass:
-    foo = []
+    foo: list[object] = []
     bar = None
 
     @property
-    def baz(self):
-        pass
+    def baz(self) -> None: ...
+    def foobar(self) -> None: ...
 
-    def foobar(self):
-        pass
+    dummy: Greeter  # available when using `dummy_namespace` fixture
 
 
 register_dummy_namespace = make_register_namespace_decorator(DummyClass, "obj", "register_dummy_namespace")
@@ -72,16 +76,18 @@ def test_accessor_namespace() -> None:
 
     # Define a dummy namespace class to be used via the descriptor.
     class DummyNamespace:
-        def __init__(self, obj: DummyClass):
+        def __init__(self, obj: Dummy):
             self._obj = obj
 
         def foo(self) -> str:
             return "foo"
 
     class Dummy:
-        pass
+        dummy: DummyNamespace  # just typing, runtime added below
 
-    descriptor = extensions.AccessorNameSpace("dummy", DummyNamespace)
+    descriptor: extensions.AccessorNameSpace[Dummy, DummyNamespace] = extensions.AccessorNameSpace(
+        "dummy", DummyNamespace
+    )
 
     # When accessed on the class, it should return the namespace type.
     ns_class = descriptor.__get__(None, Dummy)
@@ -204,7 +210,7 @@ def test_missing_annotation() -> None:
 
         @register_dummy_namespace("missing_annotation")
         class MissingAnnotationNamespace:
-            def __init__(self, obj) -> None:
+            def __init__(self, obj) -> None:  # type: ignore[no-untyped-def]
                 self.obj = obj
 
 
