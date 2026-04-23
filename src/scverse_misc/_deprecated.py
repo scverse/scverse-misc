@@ -2,12 +2,7 @@ from __future__ import annotations
 
 import sys
 from inspect import getdoc
-from typing import TYPE_CHECKING, TypeVar
-
-if sys.version_info >= (3, 11):
-    from typing import LiteralString
-else:
-    from typing_extensions import LiteralString
+from typing import TYPE_CHECKING, LiteralString
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as _deprecated
@@ -16,8 +11,6 @@ else:
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    F = TypeVar("F", bound=Callable)
 
 
 __all__ = ["deprecated", "Deprecation"]
@@ -33,7 +26,7 @@ class Deprecation(str):
 
     version_deprecated: LiteralString
 
-    def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:
+    def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:  # type: ignore[misc]  # typing.Intersection doesn’t exist yet
         if not msg:
             msg = ""  # be lenient here, people don’t want to see “None” or “False” here
         obj = super().__new__(cls, msg)
@@ -41,7 +34,9 @@ class Deprecation(str):
         return obj
 
 
-def _deprecated_at(msg: Deprecation, *, category=FutureWarning, stacklevel=1) -> Callable[[F], F]:
+def _deprecated_at[F: Callable[..., object]](
+    msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1
+) -> Callable[[F], F]:
     """Decorator to indicate that a class, function, or overload is deprecated.
 
     Wraps :func:`warnings.deprecated` and additionally modifies the docstring to include a deprecation notice.

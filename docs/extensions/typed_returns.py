@@ -6,7 +6,8 @@ import re
 from collections.abc import Generator, Iterable
 
 from sphinx.application import Sphinx
-from sphinx.ext.napoleon import NumpyDocstring
+from sphinx.ext.napoleon.docstring import NumpyDocstring, GoogleDocstring
+from sphinx.util.typing import ExtensionMetadata
 
 
 def _process_return(lines: Iterable[str]) -> Generator[str, None, None]:
@@ -17,7 +18,7 @@ def _process_return(lines: Iterable[str]) -> Generator[str, None, None]:
             yield line
 
 
-def _parse_returns_section(self: NumpyDocstring, section: str) -> list[str]:
+def _parse_returns_section(self: GoogleDocstring, section: str) -> list[str]:
     lines_raw = self._dedent(self._consume_to_next_section())
     if lines_raw[0] == ":":
         del lines_raw[0]
@@ -27,6 +28,7 @@ def _parse_returns_section(self: NumpyDocstring, section: str) -> list[str]:
     return lines
 
 
-def setup(app: Sphinx):
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Set app."""
-    NumpyDocstring._parse_returns_section = _parse_returns_section
+    NumpyDocstring._parse_returns_section = _parse_returns_section  # type: ignore[method-assign]
+    return ExtensionMetadata(parallel_read_safe=True)

@@ -1,15 +1,22 @@
+"""System to add extension attributes to classes.
+
+Based off of the extension framework in Polars:
+https://github.com/pola-rs/polars/blob/main/py-polars/polars/api.py
+"""
+
 from __future__ import annotations
 
 import inspect
+import sys
 import warnings
 from itertools import islice
-from typing import TYPE_CHECKING, Generic, Literal, Protocol, TypeVar, get_type_hints, overload, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, get_type_hints, overload, runtime_checkable
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Set
 
 
-__all__ = ["ExtensionNamespace", "make_register_namespace_decorator"]
+__all__ = ["make_register_namespace_decorator", "ExtensionNamespace"]
 
 
 @runtime_checkable
@@ -22,21 +29,11 @@ class ExtensionNamespace(Protocol):
     checking with mypy and IDEs.
     """
 
-    def __init__(self, instance) -> None:
+    def __init__(self, instance: object) -> None:
         """Used to enforce the correct signature for extension namespaces."""
 
 
-# Based off of the extension framework in Polars
-# https://github.com/pola-rs/polars/blob/main/py-polars/polars/api.py
-
-__all__ = ["make_register_namespace_decorator", "ExtensionNamespace"]
-
-
-NameSpT = TypeVar("NameSpT", bound=ExtensionNamespace)
-T = TypeVar("T")
-
-
-class AccessorNameSpace(ExtensionNamespace, Generic[NameSpT]):
+class AccessorNameSpace[T, NameSpT: ExtensionNamespace]:
     """Establish property-like namespace object for user-defined functionality."""
 
     def __init__(self, name: str, namespace: type[NameSpT]) -> None:
@@ -53,7 +50,7 @@ class AccessorNameSpace(ExtensionNamespace, Generic[NameSpT]):
         if instance is None:
             return self._ns
 
-        ns_instance = self._ns(instance)  # type: ignore[call-arg]
+        ns_instance = self._ns(instance)
         setattr(instance, self._accessor, ns_instance)
         return ns_instance
 
@@ -84,7 +81,7 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
         TypeError: If both the name and type annotation of the second parameter are incorrect.
 
     """
-    sig = inspect.signature(ns_class.__init__)
+    sig = inspect.signature(ns_class.__init__)  # type: ignore[misc]  # https://github.com/python/mypy/issues/21236
     params = sig.parameters
 
     # Ensure there are at least two parameters (self and mdata)
@@ -92,9 +89,7 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
         raise TypeError(f"Namespace initializer must accept a {cls.__name__} instance as the second parameter.")
 
     # Get the second parameter (expected to be `canonical_instance_name`)
-    param = iter(params.values())
-    next(param)
-    param = next(param)
+    [_, param, *_] = params.values()
     if param.annotation is inspect.Parameter.empty:
         raise AttributeError(
             f"Namespace initializer's second parameter must be annotated as the {cls.__name__!r} class, got empty annotation."
@@ -104,7 +99,7 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
 
     # Resolve the annotation using get_type_hints to handle forward references and aliases.
     try:
-        type_hints = get_type_hints(ns_class.__init__)
+        type_hints = get_type_hints(ns_class.__init__)  # type: ignore[misc]  # https://github.com/python/mypy/issues/21236
         resolved_type = type_hints.get(param.name, param.annotation)
     except NameError as e:
         raise NameError(
@@ -133,7 +128,7 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
             )
 
 
-def _create_namespace(
+def _create_namespace[NameSpT: ExtensionNamespace](
     name: str, cls: type, reserved_namespaces: Set[str], canonical_instance_name: str
 ) -> Callable[[type[NameSpT]], type[NameSpT]]:
     """Register custom namespace against the underlying class."""
@@ -152,14 +147,14 @@ def _create_namespace(
     return namespace
 
 
-def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 0):
-    minspace = 1e6
+def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 0) -> str:
+    minspace = sys.maxsize
     for line in islice(string.splitlines(), 1, None):
         for i, char in enumerate(line):
             if not char.isspace():
                 minspace = min(minspace, i)
                 break
-    if minspace == 1e6:  # single-line string
+    if minspace == sys.maxsize:  # single-line string
         minspace = 0
     return "\n".join(
         " " * 4 * indentation_level + sline if i >= skip_lines else sline
@@ -168,7 +163,7 @@ def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 
     )
 
 
-def make_register_namespace_decorator(
+def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
     cls: type, canonical_instance_name: str, decorator_name: str, docstring_style: Literal["google", "numpy"] = "google"
 ) -> Callable[[str], Callable[[type[NameSpT]], type[NameSpT]]]:
     """Create a decorator for registering custom functionality with a class.
