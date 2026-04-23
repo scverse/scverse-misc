@@ -127,14 +127,17 @@ class Settings(BaseSettings):
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
    :type: {_type_str(field)}
-   :value: {field.default!r}
+   :value: {field.default!r}\n"""
 
-{textwrap.indent(field.description, "   ")}\n"""
+            description = f"(default `{field.default!r}`) "
+            if field.description is not None:
+                subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
+                description += field.description
 
-            description = f"(default `{field.default!r}`) {field.description}"
             if docstring_style == "google":
-                override.__doc__ += f"""
-    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
+                override.__doc__ += (
+                    f"""    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
+                )
             else:
                 override.__doc__ += f"""
 {fname} : {_type_str(field)}
