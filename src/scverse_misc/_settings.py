@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from contextlib import contextmanager
 from types import GenericAlias
-from typing import Literal, Self
+from typing import Literal
 
 import dotenv
 from pydantic.fields import FieldInfo
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
         return package_name
 
     def __init_subclass__(
-        subcls: type[Self], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        subcls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
     ):
 
         config = getattr(subcls, "model_config", SettingsConfigDict())
@@ -97,7 +97,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def __pydantic_init_subclass__(
-        subcls: type[Self], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        subcls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
     ):
         @contextmanager
         def override(self, **kwargs):
