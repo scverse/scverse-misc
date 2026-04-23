@@ -7,23 +7,33 @@ import pytest
 from pydantic import Field, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
+from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 from scverse_misc import Settings
 
 
-class DummySettings(Settings, exported_object_name="settings", docstring_style="google"):
-    field_bool: bool = False
-    """Boolean field."""
-
-    field_no_docstring: int = 42
-
-    field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
-    """Integer range field."""
+@pytest.fixture
+def docstring_style(request: pytest.FixtureRequest) -> str:
+    return getattr(request, "param", "google")
 
 
 @pytest.fixture
-def settings() -> DummySettings:
-    return DummySettings()
+def settings_class(docstring_style: str) -> type[Settings]:
+    class DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
+        field_bool: bool = False
+        """Boolean field."""
+
+        field_no_docstring: int = 42
+
+        field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
+        """Integer range field."""
+
+    return DummySettings
+
+
+@pytest.fixture
+def settings(settings_class: type[Settings]) -> Settings:
+    return settings_class()
 
 
 def test_defaults_override() -> None:
@@ -45,17 +55,17 @@ def test_defaults_override() -> None:
         settings.field_bool = 2  # type: ignore[assignment]
 
 
-def test_validate_assignment(settings: DummySettings) -> None:
+def test_validate_assignment(settings: Settings) -> None:
     with pytest.raises(ValidationError):
-        settings.field_bool = 2  # type: ignore[assignment]
+        settings.field_bool = 2  # type: ignore[attr-defined]
     with pytest.raises(ValidationError):
-        settings.field_int_range = -1
+        settings.field_int_range = -1  # type: ignore[attr-defined]
 
 
-def test_override(settings: DummySettings) -> None:
+def test_override(settings: Settings) -> None:
     with settings.override(field_bool=True):
-        assert settings.field_bool is True
-    assert settings.field_bool is False
+        assert settings.field_bool is True  # type: ignore[attr-defined]
+    assert settings.field_bool is False  # type: ignore[attr-defined]
 
     with pytest.raises(ValidationError):
         with settings.override(field_int_range=3, field_no_docstring=1.1):
@@ -64,8 +74,11 @@ def test_override(settings: DummySettings) -> None:
     assert settings.field_int_range == 1
 
 
-def test_docs(settings: DummySettings) -> None:
-    lines = (inspect.getdoc(settings) or "").splitlines()
+@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
+def test_docs(docstring_style: str, settings: Settings) -> None:
+    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
+    lines = parser(inspect.getdoc(settings)).lines()  # type: ignore[arg-type]
+
     assert lines[0].endswith("`tests` package.")
 
     current_field: FieldInfo | None = None
@@ -85,14 +98,17 @@ def test_docs(settings: DummySettings) -> None:
                 assert line == current_field.description
 
 
-def test_override_docs(settings: DummySettings) -> None:
-    lines = (inspect.getdoc(settings.override) or "").splitlines()
-    assert lines[2] == "Args:"
-    for line, (field_name, field) in zip(lines[3:], settings.__class__.model_fields.items(), strict=True):
-        assert field.annotation is not None
-        assert line.startswith(f"    {field_name} ({str(field.annotation.__name__)})")
+@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
+def test_override_docs(docstring_style: str, settings: Settings) -> None:
+    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
+    lines = parser(inspect.getdoc(settings.override)).lines()  # type: ignore[arg-type]
 
-        line_end = f" (default `{field.default!r}`) "
-        if field.description is not None:
-            line_end += field.description
-        assert line.endswith(line_end)
+    current_field: FieldInfo | None = None
+    field_iter = iter(settings.__class__.model_fields.items())
+    for line in lines:
+        if line.startswith(":param"):
+            current_field_name, current_field = next(field_iter)
+            description = " " + current_field.description if current_field.description is not None else ""
+            assert line.startswith(f":param {current_field_name}: (default `{current_field.default!r}`){description}")
+        elif current_field is not None and len(line) > 0:
+            assert line == f":type {current_field_name}: {current_field.annotation.__name__}"  # type: ignore[union-attr]
