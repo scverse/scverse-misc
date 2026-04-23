@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Literal, cast
 
 import pytest
 from pydantic import Field, ValidationError
@@ -11,15 +11,22 @@ from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[
 
 from scverse_misc import Settings
 
+if TYPE_CHECKING:
+    # Static version of the class returned by the `settings_class` fixture
+    class DummySettings(Settings, exported_object_name="settings"):
+        field_bool: bool
+        field_no_docstring: int
+        field_int_range: int = 1
+
 
 @pytest.fixture
-def docstring_style(request: pytest.FixtureRequest) -> str:
+def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
     return getattr(request, "param", "google")
 
 
 @pytest.fixture
-def settings_class(docstring_style: str) -> type[Settings]:
-    class DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
+def settings_class(docstring_style: Literal["google", "numpy"]) -> type[DummySettings]:
+    class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
         field_bool: bool = False
         """Boolean field."""
 
@@ -28,7 +35,7 @@ def settings_class(docstring_style: str) -> type[Settings]:
         field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
         """Integer range field."""
 
-    return DummySettings
+    return cast("type[DummySettings]", _DummySettings)
 
 
 @pytest.fixture
@@ -55,17 +62,17 @@ def test_defaults_override() -> None:
         settings.field_bool = 2  # type: ignore[assignment]
 
 
-def test_validate_assignment(settings: Settings) -> None:
+def test_validate_assignment(settings: DummySettings) -> None:
     with pytest.raises(ValidationError):
-        settings.field_bool = 2  # type: ignore[attr-defined]
+        settings.field_bool = 2  # type: ignore[assignment]
     with pytest.raises(ValidationError):
-        settings.field_int_range = -1  # type: ignore[attr-defined]
+        settings.field_int_range = -1
 
 
-def test_override(settings: Settings) -> None:
+def test_override(settings: DummySettings) -> None:
     with settings.override(field_bool=True):
-        assert settings.field_bool is True  # type: ignore[attr-defined]
-    assert settings.field_bool is False  # type: ignore[attr-defined]
+        assert settings.field_bool is True
+    assert settings.field_bool is False
 
     with pytest.raises(ValidationError):
         with settings.override(field_int_range=3, field_no_docstring=1.1):
@@ -75,7 +82,7 @@ def test_override(settings: Settings) -> None:
 
 
 @pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
-def test_docs(docstring_style: str, settings: Settings) -> None:
+def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings)).lines()  # type: ignore[arg-type]
 
@@ -99,7 +106,7 @@ def test_docs(docstring_style: str, settings: Settings) -> None:
 
 
 @pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
-def test_override_docs(docstring_style: str, settings: Settings) -> None:
+def test_override_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings.override)).lines()  # type: ignore[arg-type]
 
