@@ -74,7 +74,7 @@ class Settings(BaseSettings):
         return init_settings, env_settings, dotenv_settings
 
     @classmethod
-    def _get_packagename(cls: type[Settings]) -> str:
+    def _get_packagename(cls) -> str:
         package_name = cls.__module__
         dotidx = package_name.find(".")
         if dotidx > -1:
