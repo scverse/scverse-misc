@@ -27,6 +27,8 @@ class Deprecation(str):
     version_deprecated: LiteralString
 
     def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:  # type: ignore[misc]
+        if not msg:
+            msg = ""  # be lenient here, people don’t want to see “None” or “False” here
         obj = super().__new__(cls, msg)
         obj.version_deprecated = version_deprecated
         return obj
