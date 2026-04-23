@@ -81,10 +81,7 @@ class Settings(BaseSettings):
             package_name = package_name[:dotidx]
         return package_name
 
-    def __init_subclass__(
-        cls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
-    ):
-
+    def __init_subclass__(cls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
         config = getattr(cls, "model_config", SettingsConfigDict())
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
@@ -101,7 +98,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
-        cls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        cls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
     ) -> None:
         @contextmanager
         def override(self: Self, **kwargs: object) -> Generator[None]:
