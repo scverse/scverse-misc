@@ -3,13 +3,15 @@ from __future__ import annotations
 import textwrap
 import warnings
 from collections.abc import Generator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 from types import GenericAlias
-from typing import Literal, Self
+from typing import Literal
 
 import dotenv
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+from ._utils import copy_func
 
 
 def _type_str(field: FieldInfo) -> str:
@@ -38,8 +40,7 @@ class Settings(BaseSettings):
     `exported_object_name` and one optional argument `docstring_style`, which will be used to construct
     a suitable docstring (see the examples).
 
-    Each subclass will get an `override` context manager method for local settings overrides. Both
-    a settings instance and its `override` method should be added to the package documentation.
+    Both a settings instance and its `override` method should be added to the package documentation.
 
     Thanks to Pydantic Settings, settings values will also be loaded from environment variables or `.env`
     files. Environment variables must be prefixex with `$PACKAGE_NAME_` to take effect, where `$PACKAGE_NAME`
@@ -108,24 +109,25 @@ class Settings(BaseSettings):
 
         super().__init_subclass__()
 
-    def override(self, **kwargs: object) -> AbstractContextManager[None]:
-        raise AssertionError
+    @contextmanager
+    def override(self, **kwargs: object) -> Generator[None]:
+        """Context manager for local setting overrides.
+
+        Subclasses will get a version with a docstring detailing the available parameters.
+        """
+        oldsettings = {argname: getattr(self, argname) for argname in kwargs.keys()}
+        try:
+            for argname, argval in kwargs.items():
+                setattr(self, argname, argval)
+            yield
+        finally:
+            for argname, argval in reversed(oldsettings.items()):
+                setattr(self, argname, argval)
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
         subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
     ) -> None:
-        @contextmanager
-        def override(self: Self, **kwargs: object) -> Generator[None]:
-            oldsettings = {argname: getattr(self, argname) for argname in kwargs.keys()}
-            try:
-                for argname, argval in kwargs.items():
-                    setattr(self, argname, argval)
-                yield
-            finally:
-                for argname, argval in reversed(oldsettings.items()):
-                    setattr(self, argname, argval)
-
         subcls.__doc__ = (
             _docstring_template.format(
                 package=__class__._get_packagename(subcls),  # type: ignore[name-defined] # https://github.com/python/mypy/issues/4177
@@ -134,11 +136,11 @@ class Settings(BaseSettings):
             )
             + "\n\nThe following options are available:\n"
         )
-        override.__doc__ = "Provides local override via keyword arguments as a context manager.\n\n"
+        override_doc = "Provides local override via keyword arguments as a context manager.\n\n"
         if docstring_style == "google":
-            override.__doc__ += "Args:\n"
+            override_doc += "Args:\n"
         else:
-            override.__doc__ += "Parameters\n----------\n"
+            override_doc += "Parameters\n----------\n"
         for fname, field in subcls.model_fields.items():
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
@@ -151,12 +153,15 @@ class Settings(BaseSettings):
                 description += field.description
 
             if docstring_style == "google":
-                override.__doc__ += (
-                    f"""    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
-                )
+                override_doc += f"""    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
             else:
-                override.__doc__ += f"""
+                override_doc += f"""
 {fname} : {_type_str(field)}
 {textwrap.indent(description, "    ")}\n"""
 
-        subcls.override = override  # type: ignore[method-assign]
+        subcls.override = copy_func(  # type: ignore[method-assign,type-var]
+            subcls.override,
+            __doc__=override_doc,
+            __module__=subcls.__module__,
+            __qualname__=f"{subcls.__qualname__}.override",
+        )
