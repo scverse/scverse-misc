@@ -5,6 +5,7 @@ from typing import Annotated
 
 import pytest
 from pydantic import Field, ValidationError
+from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
 
 from scverse_misc import Settings
@@ -23,18 +24,18 @@ class DummySettings(Settings, exported_object_name="settings", docstring_style="
 
 
 @pytest.fixture
-def settings():
+def settings() -> DummySettings:
     return DummySettings()
 
 
-def test_validate_assignment(settings):
+def test_validate_assignment(settings: DummySettings) -> None:
     with pytest.raises(ValidationError):
-        settings.field_bool = 2
+        settings.field_bool = 2  # type: ignore[assignment]
     with pytest.raises(ValidationError):
         settings.field_int_range = -1
 
 
-def test_override(settings):
+def test_override(settings: DummySettings) -> None:
     with settings.override(field_bool=True):
         assert settings.field_bool is True
     assert settings.field_bool is False
@@ -46,11 +47,11 @@ def test_override(settings):
     assert settings.field_int_range == 1
 
 
-def test_docs(settings):
-    lines = inspect.getdoc(settings).splitlines()
+def test_docs(settings: DummySettings) -> None:
+    lines = (inspect.getdoc(settings) or "").splitlines()
     assert lines[0].endswith("`tests` package.")
 
-    current_field_name, current_field = None, None
+    current_field: FieldInfo | None = None
     field_iter = iter(settings.__class__.model_fields.items())
     for line in lines:
         if line.startswith(".. attribute::"):
@@ -59,6 +60,7 @@ def test_docs(settings):
         elif current_field is not None:
             line = line.strip()
             if line.startswith(":type:"):
+                assert current_field.annotation is not None
                 assert line.endswith(current_field.annotation.__name__)
             elif line.startswith(":value:"):
                 assert line.endswith(repr(current_field.default))
@@ -66,10 +68,11 @@ def test_docs(settings):
                 assert line == current_field.description
 
 
-def test_override_docs(settings):
-    lines = inspect.getdoc(settings.override).splitlines()
+def test_override_docs(settings: DummySettings) -> None:
+    lines = (inspect.getdoc(settings.override) or "").splitlines()
     assert lines[2] == "Args:"
     for line, (field_name, field) in zip(lines[3:], settings.__class__.model_fields.items(), strict=True):
+        assert field.annotation is not None
         assert line.startswith(f"    {field_name} ({str(field.annotation.__name__)})")
 
         line_end = f" (default `{field.default!r}`) "

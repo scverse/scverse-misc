@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import textwrap
-from contextlib import contextmanager
+from collections.abc import Generator
+from contextlib import AbstractContextManager, contextmanager
 from types import GenericAlias
-from typing import Literal
+from typing import Literal, Self
 
 import dotenv
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 
-def _type_str(field: FieldInfo):
+def _type_str(field: FieldInfo) -> str:
     return (
         field.annotation.__name__
         if isinstance(field.annotation, type) and not isinstance(field.annotation, GenericAlias)
@@ -72,35 +73,38 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         return init_settings, env_settings, dotenv_settings
 
-    @staticmethod
-    def _get_packagename(subcls):
-        package_name = subcls.__module__
+    @classmethod
+    def _get_packagename(cls: type[Settings]) -> str:
+        package_name = cls.__module__
         dotidx = package_name.find(".")
         if dotidx > -1:
             package_name = package_name[:dotidx]
         return package_name
 
     def __init_subclass__(
-        subcls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        cls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
     ):
 
-        config = getattr(subcls, "model_config", SettingsConfigDict())
+        config = getattr(cls, "model_config", SettingsConfigDict())
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
         config["env_file"] = dotenv.find_dotenv()
 
         if not config["env_prefix"]:
-            config["env_prefix"] = f"{__class__._get_packagename(subcls)}_"
-        subcls.model_config = config
+            config["env_prefix"] = f"{cls._get_packagename()}_"
+        cls.model_config = config
 
         super().__init_subclass__()
 
+    def override(self, **kwargs: object) -> AbstractContextManager[None]:
+        raise AssertionError
+
     @classmethod
-    def __pydantic_init_subclass__(
-        subcls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
-    ):
+    def __pydantic_init_subclass__(  # type: ignore[override]
+        cls: type[Settings], *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+    ) -> None:
         @contextmanager
-        def override(self, **kwargs):
+        def override(self: Self, **kwargs: object) -> Generator[None]:
             oldsettings = {argname: getattr(self, argname) for argname in kwargs.keys()}
             try:
                 for argname, argval in kwargs.items():
@@ -110,11 +114,11 @@ class Settings(BaseSettings):
                 for argname, argval in reversed(oldsettings.items()):
                     setattr(self, argname, argval)
 
-        subcls.__doc__ = (
+        cls.__doc__ = (
             _docstring_template.format(
-                package=__class__._get_packagename(subcls),
+                package=cls._get_packagename(),
                 name=exported_object_name,
-                env_prefix=subcls.model_config["env_prefix"].upper(),
+                env_prefix=cls.model_config["env_prefix"].upper(),
             )
             + "\n\nThe following options are available:\n"
         )
@@ -123,15 +127,15 @@ class Settings(BaseSettings):
             override.__doc__ += "Args:\n"
         else:
             override.__doc__ += "Parameters\n----------\n"
-        for fname, field in subcls.model_fields.items():
-            subcls.__doc__ += f"""
+        for fname, field in cls.model_fields.items():
+            cls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
    :type: {_type_str(field)}
    :value: {field.default!r}\n"""
 
             description = f"(default `{field.default!r}`) "
             if field.description is not None:
-                subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
+                cls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
                 description += field.description
 
             if docstring_style == "google":
@@ -143,4 +147,4 @@ class Settings(BaseSettings):
 {fname} : {_type_str(field)}
 {textwrap.indent(description, "    ")}\n"""
 
-        subcls.override = override
+        cls.override = override  # type: ignore[method-assign]
