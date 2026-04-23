@@ -6,26 +6,29 @@ import pytest
 from scverse_misc import Deprecation, deprecated
 
 
-@pytest.fixture(params=[None, "Test message."])
+@pytest.fixture(params=[pytest.param(None, id="no_message"), pytest.param("Test message.", id="message")])
 def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
 
 @pytest.fixture(
     params=[
-        None,
-        "Test function",
-        """Test function
+        pytest.param(None, id="no_docstring"),
+        pytest.param("Test function", id="short"),
+        pytest.param(
+            """Test function
 
-    This is a test.
+            This is a test.
 
-    Parameters
-    ----------
-    foo
-        bar
-    bar
-        baz
-""",
+            Parameters
+            ----------
+            foo
+                bar
+            bar
+                baz
+            """,
+            id="long",
+        ),
     ]
 )
 def docstring(request: pytest.FixtureRequest) -> str | None:

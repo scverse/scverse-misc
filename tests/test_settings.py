@@ -12,7 +12,7 @@ from scverse_misc import Settings
 
 
 class DummySettings(Settings, exported_object_name="settings", docstring_style="google"):
-    model_config = SettingsConfigDict(validate_assignment=False)
+    model_config = SettingsConfigDict(validate_assignment=False)  # this should do nothing
 
     field_bool: bool = False
     """Boolean field."""
