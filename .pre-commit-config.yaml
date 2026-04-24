@@ -42,6 +42,7 @@ repos:
     - id: mypy
       args: []
       additional_dependencies:
+      - pydantic-settings
       - pytest
       - sphinx
       - sphinxcontrib-katex

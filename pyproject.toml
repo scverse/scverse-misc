@@ -26,6 +26,7 @@ dependencies = [
   "session-info2",
   "typing-extensions; python_version<'3.13'",
 ]
+optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
 urls.Homepage = "https://github.com/scverse/scverse-misc"
@@ -36,12 +37,13 @@ dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-test = [ "coverage>=7.10", "numpy", "pytest" ]
+test = [ "coverage>=7.10", "numpy", "pytest", "scverse-misc[settings]", "sphinx" ]
 doc = [
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
   "pandas",
+  "scverse-misc[settings]",
   "sphinx>=8.1",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",
@@ -93,6 +95,7 @@ lint.select = [
 ]
 lint.ignore = [
   "B008",   # Errors from function calls in argument defaults. These are fine when the result is immutable.
+  "C408",   # `dict()` is sometimes nicer than `{}`
   "D100",   # Missing docstring in public module
   "D104",   # Missing docstring in public package
   "D105",   # __magic__ methods are often self-explanatory, allow missing docstrings
