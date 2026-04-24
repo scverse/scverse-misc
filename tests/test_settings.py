@@ -14,8 +14,8 @@ from scverse_misc import Settings
 if TYPE_CHECKING:
     # Static version of the class returned by the `settings_class` fixture
     class DummySettings(Settings, exported_object_name="settings"):
-        field_bool: bool
-        field_no_docstring: int
+        field_bool: bool = False
+        field_no_docstring: int = 42
         field_int_range: int = 1
 
 
@@ -39,7 +39,7 @@ def settings_class(docstring_style: Literal["google", "numpy"]) -> type[DummySet
 
 
 @pytest.fixture
-def settings(settings_class: type[Settings]) -> Settings:
+def settings(settings_class: type[DummySettings]) -> DummySettings:
     return settings_class()
 
 
@@ -60,6 +60,14 @@ def test_defaults_override() -> None:
     settings = WarnSettings()
     with pytest.raises(ValidationError):
         settings.field_bool = 2  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize("v", [2, 4])
+def test_env_vars(monkeypatch: pytest.MonkeyPatch, settings_class: type[DummySettings], v: int) -> None:
+    """Test that the env var prefix is derived from the module name."""
+    monkeypatch.setenv("TESTS_FIELD_INT_RANGE", str(v))
+    settings = settings_class()
+    assert settings.field_int_range == v
 
 
 def test_validate_assignment(settings: DummySettings) -> None:
@@ -89,7 +97,7 @@ def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettin
     assert lines[0].endswith("`tests` package.")
 
     current_field: FieldInfo | None = None
-    field_iter = iter(settings.__class__.model_fields.items())
+    field_iter = iter(type(settings).model_fields.items())
     for line in lines:
         if line.startswith(".. attribute::"):
             current_field_name, current_field = next(field_iter)
@@ -111,7 +119,7 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
     lines = parser(inspect.getdoc(settings.override)).lines()  # type: ignore[arg-type]
 
     current_field: FieldInfo | None = None
-    field_iter = iter(settings.__class__.model_fields.items())
+    field_iter = iter(type(settings).model_fields.items())
     for line in lines:
         if line.startswith(":param"):
             current_field_name, current_field = next(field_iter)
