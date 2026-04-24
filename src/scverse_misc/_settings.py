@@ -84,8 +84,7 @@ class Settings(BaseSettings):
         return package_name
 
     def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
-        if "model_config" in subcls.__dict__:
-            config = subcls.model_config
+        if (config := subcls.__dict__.get("model_config")) is not None:
             if not config.get("validate_assignment", True):
                 warnings.warn("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, stacklevel=2)
             if not config.get("use_attribute_docstrings", True):

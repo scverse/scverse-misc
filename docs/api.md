@@ -31,10 +31,14 @@ Types used by the former:
 ```
 
 ## Settings
-```{eval-rst}
-.. autosummary::
-  :toctree: generated
-  :template: autosummary/model.rst
 
-  Settings
+```{eval-rst}
+.. toctree::
+   :hidden:
+
+   api/settings
+
++---------------------------+----------------------------------+
+| :class:`Settings` ()      | Base class for package settings. |
++---------------------------+----------------------------------+
 ```
