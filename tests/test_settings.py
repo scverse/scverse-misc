@@ -127,3 +127,15 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
             assert line.startswith(f":param {current_field_name}: (default `{current_field.default!r}`){description}")
         elif current_field is not None and len(line) > 0:
             assert line == f":type {current_field_name}: {current_field.annotation.__name__}"  # type: ignore[union-attr]
+
+
+def test_annotation_format() -> None:
+    from pathlib import Path
+
+    class S(Settings, exported_object_name="s"):
+        path: Path
+
+    docstring = inspect.getdoc(S)
+    type_str = next(l.strip().removeprefix(":type:") for l in docstring.splitlines() if ":type" in l)
+
+    assert type_str == "pathlib.Path"
