@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import sys
 import textwrap
 import warnings
 from collections.abc import Generator
 from contextlib import contextmanager
 from types import GenericAlias
-from typing import Literal
+from typing import Literal, Self
 
 import dotenv
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from ._utils import copy_func
+from ._utils import Overrides, copy_func
 
 
 def _type_str(field: FieldInfo) -> str:
@@ -125,7 +126,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
-        subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        subcls: type[Self], *, exported_object_name: str, docstring_style: Literal["google", "numpy", "scverse"]
     ) -> None:
         subcls.__doc__ = (
             _docstring_template.format(
@@ -154,13 +155,22 @@ class Settings(BaseSettings):
             if docstring_style == "google":
                 override_doc += f"""    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
             else:
+                annot = "" if docstring_style == "scverse" else f" : {_type_str(field)}"
                 override_doc += f"""
-{fname} : {_type_str(field)}
+{fname}{annot}
 {textwrap.indent(description, "    ")}\n"""
 
+        annotations = {name: field.annotation for name, field in subcls.model_fields.items()}
+        kw = Overrides(
+            __doc__=override_doc, __module__=subcls.__module__, __qualname__=f"{subcls.__qualname__}.override"
+        )
+        if sys.version_info >= (3, 14):
+            kw["__annotate__"] = lambda fmt: (
+                annotations if fmt != 4 else {n: _type_str(a) for n, a in annotations.items()}
+            )
+        else:
+            kw["__annotations__"] = annotations
+
         subcls.override = copy_func(  # type: ignore[method-assign,type-var]
-            subcls.override,
-            __doc__=override_doc,
-            __module__=subcls.__module__,
-            __qualname__=f"{subcls.__qualname__}.override",
+            subcls.override, **kw
         )
