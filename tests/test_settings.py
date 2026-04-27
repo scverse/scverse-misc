@@ -92,7 +92,7 @@ def test_override(settings: DummySettings) -> None:
 @pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
 def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
-    lines = parser(inspect.getdoc(settings)).lines()  # type: ignore[arg-type]
+    lines = parser(inspect.getdoc(settings) or "").lines()
 
     assert lines[0].endswith("`tests` package.")
 
@@ -116,7 +116,7 @@ def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettin
 @pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
 def test_override_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
-    lines = parser(inspect.getdoc(settings.override)).lines()  # type: ignore[arg-type]
+    lines = parser(inspect.getdoc(settings.override) or "").lines()
 
     current_field: FieldInfo | None = None
     field_iter = iter(type(settings).model_fields.items())
@@ -126,4 +126,5 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
             description = " " + current_field.description if current_field.description is not None else ""
             assert line.startswith(f":param {current_field_name}: (default `{current_field.default!r}`){description}")
         elif current_field is not None and len(line) > 0:
-            assert line == f":type {current_field_name}: {current_field.annotation.__name__}"  # type: ignore[union-attr]
+            assert current_field.annotation is not None
+            assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
