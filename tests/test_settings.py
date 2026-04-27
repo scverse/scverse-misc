@@ -136,19 +136,19 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
         pytest.param("string", "str", id="builtin"),
         pytest.param("path", "pathlib.Path", id="3rd-party"),
         # same module as `S`, so no leading `tests.test_settings.`
-        pytest.param("t", "test_annotation_format.<locals>.T", id="same-module"),
+        pytest.param("local", "test_annotation_format.<locals>.Local", id="same-module"),
     ],
 )
 def test_annotation_format(attr: str, expected: str) -> None:
     """Test that annotation references work correctly."""
     from pathlib import Path
 
-    class T: ...
+    class Local: ...
 
     class S(Settings, exported_object_name="s"):
         string: str
         path: Path
-        t: T
+        local: Local
 
     line_iter = iter((inspect.getdoc(S) or "").splitlines())
     for line in line_iter:
