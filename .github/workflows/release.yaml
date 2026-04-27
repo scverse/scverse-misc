@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/mofaflex
+      url: https://pypi.org/p/scverse-misc/${{ steps.wheel.outputs.version }}/
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           filter: blob:none
           fetch-depth: 0
@@ -25,5 +25,9 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Build package
         run: uv build
+      - id: wheel
+        run: |
+          version="$(uvx wheel-filename dist/*.whl | jq .version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
