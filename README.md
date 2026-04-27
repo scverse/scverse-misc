@@ -24,13 +24,13 @@ If you don't have Python installed, we recommend installing [uv][].
 
 There are several alternative options to install scverse-misc:
 
-1) Install the latest release of `scverse-misc` from [PyPI][]:
+1. Install the latest release of `scverse-misc` from [PyPI][]:
 
 ```bash
 pip install scverse-misc
 ```
 
-1. Install the latest development version:
+2. Install the latest development version:
 
 ```bash
 pip install git+https://github.com/scverse/scverse-misc.git@main
