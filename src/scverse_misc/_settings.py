@@ -17,7 +17,7 @@ from ._utils import copy_func
 def _type_str(cls: type, field: FieldInfo) -> str:
     if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
         return str(field.annotation)
-    if cls.__module__ == field.annotation.__module__:
+    if field.annotation.__module__ in {"builtins", cls.__module__}:
         return field.annotation.__qualname__
     return f"{field.annotation.__module__}.{field.annotation.__qualname__}"
 

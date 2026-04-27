@@ -133,6 +133,7 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
 @pytest.mark.parametrize(
     ("attr", "expected"),
     [
+        pytest.param("string", "str", id="builtin"),
         pytest.param("path", "pathlib.Path", id="3rd-party"),
         # same module as `S`, so no leading `tests.test_settings.`
         pytest.param("t", "test_annotation_format.<locals>.T", id="same-module"),
@@ -145,6 +146,7 @@ def test_annotation_format(attr: str, expected: str) -> None:
     class T: ...
 
     class S(Settings, exported_object_name="s"):
+        string: str
         path: Path
         t: T
 
