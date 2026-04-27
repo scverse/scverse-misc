@@ -164,11 +164,7 @@ def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 
 
 
 def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
-    cls: type,
-    canonical_instance_name: str,
-    decorator_name: str,
-    *,
-    docstring_style: Literal["google", "numpy", "scverse"],
+    cls: type, canonical_instance_name: str, decorator_name: str, docstring_style: Literal["google", "numpy", "scverse"]
 ) -> Callable[[str], Callable[[type[NameSpT]], type[NameSpT]]]:
     """Create a decorator for registering custom functionality with a class.
 
