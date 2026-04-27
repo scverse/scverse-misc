@@ -24,15 +24,13 @@ If you don't have Python installed, we recommend installing [uv][].
 
 There are several alternative options to install scverse-misc:
 
-<!--
-1) Install the latest release of `scverse-misc` from [PyPI][]:
+1. Install the latest release of `scverse-misc` from [PyPI][]:
 
 ```bash
 pip install scverse-misc
 ```
--->
 
-1. Install the latest development version:
+2. Install the latest development version:
 
 ```bash
 pip install git+https://github.com/scverse/scverse-misc.git@main
@@ -54,6 +52,6 @@ If you found a bug, please use the [issue tracker][].
 [tests]: https://github.com/scverse/scverse-misc/actions/workflows/test.yaml
 [codecov]: https://codecov.io/gh/scverse/scverse-misc
 [documentation]: https://scverse-misc.readthedocs.io
-[changelog]: https://scverse-misc.readthedocs.io/en/latest/changelog.html
-[api documentation]: https://scverse-misc.readthedocs.io/latest/api.html
+[changelog]: https://scverse-misc.readthedocs.io/page/changelog.html
+[api documentation]: https://scverse-misc.readthedocs.io/page/api.html
 [pypi]: https://pypi.org/project/scverse-misc
