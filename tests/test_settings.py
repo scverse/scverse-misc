@@ -50,7 +50,7 @@ def test_defaults_override() -> None:
         pytest.warns(RuntimeWarning, match="custom env_file location"),
     ):
 
-        class WarnSettings(Settings, exported_object_name="settings"):
+        class WarnSettings(Settings, exported_object_name="settings", docstring_style="google"):
             model_config = SettingsConfigDict(
                 validate_assignment=False, use_attribute_docstrings=False, env_file="mydotenv"
             )
