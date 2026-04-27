@@ -210,7 +210,7 @@ def test_missing_annotation() -> None:
 
         @register_dummy_namespace("missing_annotation")
         class MissingAnnotationNamespace:
-            def __init__(self, obj) -> None:  # type: ignore[no-untyped-def]
+            def __init__(self, obj: object) -> None:
                 self.obj = obj
 
 
