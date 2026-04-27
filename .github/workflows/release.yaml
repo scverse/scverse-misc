@@ -27,7 +27,7 @@ jobs:
         run: uv build
       - id: wheel
         run: |
-          version="$(uvx wheel-filename dist/*.whl | jq .version)"
+          version="$(uvx wheel-filename dist/*.whl | jq -r .version)"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
