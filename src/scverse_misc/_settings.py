@@ -14,12 +14,12 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, Settings
 from ._utils import copy_func
 
 
-def _type_str(field: FieldInfo) -> str:
-    return (
-        field.annotation.__name__  # f"{field.annotation.__module__}.{field.annotation.__qualname__}"
-        if isinstance(field.annotation, type) and not isinstance(field.annotation, GenericAlias)
-        else str(field.annotation)
-    )
+def _type_str(cls: type, field: FieldInfo) -> str:
+    if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
+        return str(field.annotation)
+    if cls.__module__ == field.annotation.__module__:
+        return field.annotation.__qualname__
+    return f"{field.annotation.__module__}.{field.annotation.__qualname__}"
 
 
 _docstring_template = """Allows users to customize settings for the `{package}` package.
@@ -143,7 +143,7 @@ class Settings(BaseSettings):
         for fname, field in subcls.model_fields.items():
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
-   :type: {_type_str(field)}
+   :type: {_type_str(subcls, field)}
    :value: {field.default!r}\n"""
 
             description = f"(default `{field.default!r}`) "
@@ -152,10 +152,12 @@ class Settings(BaseSettings):
                 description += field.description
 
             if docstring_style == "google":
-                override_doc += f"""    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
+                override_doc += (
+                    f"""    {fname} ({_type_str(subcls, field)}): {textwrap.indent(description, "        ")}\n"""
+                )
             else:
                 override_doc += f"""
-{fname} : {_type_str(field)}
+{fname} : {_type_str(subcls, field)}
 {textwrap.indent(description, "    ")}\n"""
 
         subcls.override = copy_func(  # type: ignore[method-assign,type-var]

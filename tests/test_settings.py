@@ -130,13 +130,30 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
             assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
 
 
-def test_annotation_format() -> None:
+@pytest.mark.parametrize(
+    ("attr", "expected"),
+    [
+        pytest.param("path", "pathlib.Path", id="3rd-party"),
+        # same module as `S`, so no leading `tests.test_settings.`
+        pytest.param("t", "test_annotation_format.<locals>.T", id="same-module"),
+    ],
+)
+def test_annotation_format(attr: str, expected: str) -> None:
+    """Test that annotation references work correctly."""
     from pathlib import Path
+
+    class T: ...
 
     class S(Settings, exported_object_name="s"):
         path: Path
+        t: T
 
-    docstring = inspect.getdoc(S)
-    type_str = next(l.strip().removeprefix(":type:") for l in docstring.splitlines() if ":type" in l)
+    line_iter = iter((inspect.getdoc(S) or "").splitlines())
+    for line in line_iter:
+        if line == f".. attribute:: s.{attr}":
+            type_str = next(line_iter).strip().removeprefix(":type: ")
+            break
+    else:
+        raise AssertionError(f"Annotation for {attr} not found")
 
-    assert type_str == "pathlib.Path"
+    assert type_str == expected
