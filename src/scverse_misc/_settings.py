@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     '''Base class for package settings.
 
     This class can be subclassed by individual packages to get package-specific settings handling.
-    Settings will be validated on assignment thanks to Pydantic. The class requires one argument
-    `exported_object_name` and one optional argument `docstring_style`, which will be used to construct
-    a suitable docstring (see the examples).
+    Settings will be validated on assignment thanks to Pydantic. The class requires the arguments
+    `exported_object_name` and `docstring_style`, which will be used to construct a suitable
+    docstring (see the examples).
 
     Both a settings instance and its `override` method should be added to the package documentation.
 
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
             package_name = package_name[:dotidx]
         return package_name
 
-    def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
+    def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy", "scverse"]):
         if (config := subcls.__dict__.get("model_config")) is not None:
             if not config.get("validate_assignment", True):
                 warnings.warn("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, stacklevel=2)

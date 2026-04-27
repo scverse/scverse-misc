@@ -20,12 +20,12 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
+def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy", "scverse"]:
     return getattr(request, "param", "google")
 
 
 @pytest.fixture
-def settings_class(docstring_style: Literal["google", "numpy"]) -> type[DummySettings]:
+def settings_class(docstring_style: Literal["google", "numpy", "scverse"]) -> type[DummySettings]:
     class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
         field_bool: bool = False
         """Boolean field."""
@@ -89,7 +89,7 @@ def test_override(settings: DummySettings) -> None:
     assert settings.field_int_range == 1
 
 
-@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
+@pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
 def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings) or "").lines()
@@ -113,7 +113,7 @@ def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettin
                 assert line == current_field.description
 
 
-@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
+@pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
 def test_override_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings.override) or "").lines()
