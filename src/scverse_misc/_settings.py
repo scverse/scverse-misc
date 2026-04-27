@@ -1,18 +1,17 @@
 from __future__ import annotations
 
+import inspect
 import sys
 import textwrap
 import warnings
 from collections.abc import Generator
-from contextlib import contextmanager
-from types import GenericAlias
+from contextlib import AbstractContextManager, contextmanager
+from types import FunctionType, GenericAlias
 from typing import Literal, Self
 
 import dotenv
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
-
-from ._utils import Overrides, copy_func
 
 
 def _type_str(field: FieldInfo) -> str:
@@ -160,17 +159,33 @@ class Settings(BaseSettings):
 {fname}{annot}
 {textwrap.indent(description, "    ")}\n"""
 
-        annotations = {name: field.annotation for name, field in subcls.model_fields.items()}
-        kw = Overrides(
-            __doc__=override_doc, __module__=subcls.__module__, __qualname__=f"{subcls.__qualname__}.override"
+        subcls.override = _copy_override(  # type: ignore[method-assign,type-var]
+            subcls, subcls.override, override_doc, return_annotation=AbstractContextManager[None]
         )
-        if sys.version_info >= (3, 14):
-            kw["__annotate__"] = lambda fmt: (
-                annotations if fmt != 4 else {n: _type_str(a) for n, a in annotations.items()}
-            )
-        else:
-            kw["__annotations__"] = annotations
 
-        subcls.override = copy_func(  # type: ignore[method-assign,type-var]
-            subcls.override, **kw
-        )
+
+def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, return_annotation: object) -> F:
+    from ._utils import Overrides, copy_func
+
+    parameters = [
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
+        *[
+            inspect.Parameter(n, inspect.Parameter.KEYWORD_ONLY, default=f.default, annotation=f.annotation)
+            for n, f in cls.model_fields.items()
+        ],
+    ]
+    overrides = Overrides(
+        __doc__=doc,
+        __module__=cls.__module__,
+        __qualname__=f"{cls.__qualname__}.{func.__name__}",
+        __signature__=inspect.Signature(parameters, return_annotation=return_annotation),
+        __annotations__={
+            **{name: field.annotation for name, field in cls.model_fields.items()},
+            "return": return_annotation,
+        },
+    )
+    if sys.version_info >= (3, 14):
+        str_annotations = {n: _type_str(f) for n, f in cls.model_fields.items()}
+        overrides["__annotate__"] = lambda fmt: overrides["__annotations__"] if fmt != 4 else str_annotations
+
+    return copy_func(func, **overrides)
