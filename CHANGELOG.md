@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning][].
 ### Fixed
 
 - The `Settings` docstrings longer have `:value: PydanticUndefined` for fields with no defaults.
-- Remove the “default” text from `override` parameters so we don’t imply that `override` resets all settings the user isn’t overriding
+- Remove the “default” text from `override` parameters so we don’t imply that `override` resets all settings the user isn’t overriding.
 
 ## [0.0.4]
 
