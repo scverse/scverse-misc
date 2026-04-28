@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, cast
 
 import pytest
 from pydantic import Field, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
+from sphinx.application import Sphinx
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 from scverse_misc import Settings
@@ -17,6 +19,9 @@ if TYPE_CHECKING:
         field_bool: bool = False
         field_no_docstring: int = 42
         field_int_range: int = 1
+
+
+pytest_plugins = ["sphinx.testing.fixtures"]
 
 
 @pytest.fixture
@@ -141,7 +146,6 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
 )
 def test_annotation_format(attr: str, expected: str) -> None:
     """Test that annotation references work correctly."""
-    from pathlib import Path
 
     class Local: ...
 
@@ -157,3 +161,47 @@ def test_annotation_format(attr: str, expected: str) -> None:
     lines = lines[lines.index(f".. attribute:: s.{attr}") + 1 :]
 
     assert lines == [f"   :type: {expected}"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _sphinx_config(sphinx_test_tempdir: Path) -> None:
+    """Since we only need one, we use this instead of static roots like `@pytest.mark.sphinx('html', testroot="mybook")`."""
+    p = sphinx_test_tempdir / "root" / "conf.py"
+    p.parent.mkdir(parents=True)
+    p.write_text("""
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_autodoc_typehints"]
+typehints_defaults = "braces"
+""")
+
+
+@pytest.mark.parametrize("docstring_style", ["scverse"])
+@pytest.mark.parametrize("parent", ["class", "object"])
+def test_sphinx_autodoc_typehints(
+    subtests: pytest.Subtests,
+    app: Sphinx,
+    settings_class: type[DummySettings],
+    settings: DummySettings,
+    parent: Literal["class", "object"],
+) -> None:
+    import sphinx.ext.napoleon
+    import sphinx_autodoc_typehints
+
+    obj = (settings if parent == "object" else settings_class).override
+    lines = (inspect.getdoc(obj) or "").splitlines()
+    lines = sphinx.ext.napoleon.NumpyDocstring(lines, app.config, app, "method", "", obj).lines()
+
+    with subtests.test("napoleon"):
+        # test that napoleon can parse things correctly
+        # especially the last parameter could fail to parse if there are not enough trailing newlines
+        for name in settings_class.model_fields:
+            assert f":param {name}:" in "\n".join(lines)
+
+    sphinx_autodoc_typehints.process_docstring(app, "method", "", obj, options=None, lines=lines)
+
+    with subtests.test("type"):  # no need to test all parameters
+        assert r":type field_bool: :sphinx_autodoc_typehints_type:`\:py\:class\:\`bool\`` (default: ``False``)" in lines
+    with subtests.test("rtype"):
+        assert (
+            r":rtype: :sphinx_autodoc_typehints_type:`\:py\:class\:\`\~contextlib.AbstractContextManager\`\\ \\\[\:py\:obj\:\`None\`\]`"
+            in lines
+        )

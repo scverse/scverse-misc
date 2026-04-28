@@ -151,7 +151,7 @@ class Settings(BaseSettings):
                 description = ""
             else:
                 subcls.__doc__ += f"   :value: {field.default!r}\n"
-                description = f"(default `{field.default!r}`) "
+                description = "" if docstring_style == "scverse" else f"(default `{field.default!r}`) "
 
             if field.description is not None:
                 subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
@@ -163,7 +163,7 @@ class Settings(BaseSettings):
                 )
             else:
                 annot = "" if docstring_style == "scverse" else f" : {_type_str(subcls, field)}"
-                override_doc += f"""
+                override_doc += f"""\
 {fname}{annot}
 {textwrap.indent(description, "    ")}\n"""
 
