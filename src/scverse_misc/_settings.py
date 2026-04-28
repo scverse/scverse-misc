@@ -13,13 +13,15 @@ import dotenv
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
+from ._utils import copy_func
 
-def _type_str(field: FieldInfo) -> str:
-    return (
-        field.annotation.__name__
-        if isinstance(field.annotation, type) and not isinstance(field.annotation, GenericAlias)
-        else str(field.annotation)
-    )
+
+def _type_str(cls: type, field: FieldInfo) -> str:
+    if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
+        return str(field.annotation)
+    if field.annotation.__module__ in {"builtins", cls.__module__}:
+        return field.annotation.__qualname__
+    return f"{field.annotation.__module__}.{field.annotation.__qualname__}"
 
 
 _docstring_template = """Allows users to customize settings for the `{package}` package.
@@ -143,7 +145,7 @@ class Settings(BaseSettings):
         for fname, field in subcls.model_fields.items():
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
-   :type: {_type_str(field)}
+   :type: {_type_str(subcls, field)}
    :value: {field.default!r}\n"""
 
             description = f"(default `{field.default!r}`) "
@@ -152,9 +154,11 @@ class Settings(BaseSettings):
                 description += field.description
 
             if docstring_style == "google":
-                override_doc += f"""    {fname} ({_type_str(field)}): {textwrap.indent(description, "        ")}\n"""
+                override_doc += (
+                    f"""    {fname} ({_type_str(subcls, field)}): {textwrap.indent(description, "        ")}\n"""
+                )
             else:
-                annot = "" if docstring_style == "scverse" else f" : {_type_str(field)}"
+                annot = "" if docstring_style == "scverse" else f" : {_type_str(subcls, field)}"
                 override_doc += f"""
 {fname}{annot}
 {textwrap.indent(description, "    ")}\n"""
@@ -165,7 +169,7 @@ class Settings(BaseSettings):
 
 
 def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, return_annotation: object) -> F:
-    from ._utils import Overrides, copy_func
+    from ._utils import Overrides
 
     parameters = [
         inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
