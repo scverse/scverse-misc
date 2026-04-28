@@ -147,10 +147,10 @@ class Settings(BaseSettings):
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
    :type: {_type_str(subcls, field)}\n"""
-            description = ""
             if field.default is not PydanticUndefined:
                 subcls.__doc__ += f"   :value: {field.default!r}\n"
 
+            description = ""
             if field.description is not None:
                 subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
                 description += field.description
@@ -199,6 +199,8 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, retu
     )
     if sys.version_info >= (3, 14):
         str_annotations = {n: _type_str(cls, f) for n, f in cls.model_fields.items()}
+        # All formats can be real values except for STRING:
+        # see https://docs.python.org/3/library/annotationlib.html#annotationlib.Format
         overrides["__annotate__"] = lambda fmt: overrides["__annotations__"] if fmt != 4 else str_annotations
 
     return copy_func(func, **overrides)
