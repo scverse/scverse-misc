@@ -184,12 +184,12 @@ def test_sphinx_autodoc_typehints(
     settings: DummySettings,
     parent: Literal["class", "object"],
 ) -> None:
-    import sphinx.ext.napoleon
     import sphinx_autodoc_typehints
+    from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
 
     obj = (settings if parent == "object" else settings_class).override
     lines = (inspect.getdoc(obj) or "").splitlines()
-    lines = sphinx.ext.napoleon.NumpyDocstring(lines, app.config, app, "method", "", obj).lines()
+    lines = NumpyDocstring(lines, app.config, app, "method", "", obj).lines()
 
     with subtests.test("napoleon"):
         # test that napoleon can parse things correctly
