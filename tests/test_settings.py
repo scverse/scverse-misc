@@ -128,3 +128,34 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
         elif current_field is not None and len(line) > 0:
             assert current_field.annotation is not None
             assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
+
+
+@pytest.mark.parametrize(
+    ("attr", "expected"),
+    [
+        pytest.param("string", "str", id="builtin"),
+        pytest.param("path", "pathlib.Path", id="3rd-party"),
+        # same module as `S`, so no leading `tests.test_settings.`
+        pytest.param("local", "test_annotation_format.<locals>.Local", id="same-module"),
+    ],
+)
+def test_annotation_format(attr: str, expected: str) -> None:
+    """Test that annotation references work correctly."""
+    from pathlib import Path
+
+    class Local: ...
+
+    class S(Settings, exported_object_name="s"):
+        string: str
+        path: Path
+        local: Local
+
+    line_iter = iter((inspect.getdoc(S) or "").splitlines())
+    for line in line_iter:
+        if line == f".. attribute:: s.{attr}":
+            type_str = next(line_iter).strip().removeprefix(":type: ")
+            break
+    else:
+        raise AssertionError(f"Annotation for {attr} not found")
+
+    assert type_str == expected
