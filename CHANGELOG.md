@@ -8,9 +8,24 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## [0.0.5]
+
+### Added
+
+- The `docstring_style` used by scanpy, `"scverse"`, which looks like `"numpy"` but with no parameter types in the docstring.
+
+### Changed
+
+- The `Settings` class and the `make_register_namespace_decorator` function now require passing a `docstring_style` argument.
+
+### Fixed
+
+- The `Settings` docstrings longer have `:value: PydanticUndefined` for fields with no defaults.
+- Remove the “default” text from `override` parameters so we don’t imply that `override` resets all settings the user isn’t overriding.
+
 ## [0.0.4]
 
-## Added
+### Added
 
 - A `Settings` base class that packages can inherit from for their settings. This is based
   on [Pydantic Settings](https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/) and
@@ -19,14 +34,14 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.0.3]
 
-## Added
+### Added
 
 - A `deprecated` decorator wrapping `warnings.deprecated` that additionally modifies the
   docstring to include a deprecation notice.
 
 ## [0.0.2]
 
-## Removed
+### Removed
 
 - The Pandas utility functions
 

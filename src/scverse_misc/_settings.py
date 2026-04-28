@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import inspect
+import sys
 import textwrap
 import warnings
 from collections.abc import Generator
-from contextlib import contextmanager
-from types import GenericAlias
-from typing import Literal
+from contextlib import AbstractContextManager, contextmanager
+from types import FunctionType, GenericAlias
+from typing import Literal, Self
 
 import dotenv
 from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from ._utils import copy_func
@@ -36,9 +39,9 @@ class Settings(BaseSettings):
     '''Base class for package settings.
 
     This class can be subclassed by individual packages to get package-specific settings handling.
-    Settings will be validated on assignment thanks to Pydantic. The class requires one argument
-    `exported_object_name` and one optional argument `docstring_style`, which will be used to construct
-    a suitable docstring (see the examples).
+    Settings will be validated on assignment thanks to Pydantic. The class requires the arguments
+    `exported_object_name` and `docstring_style`, which will be used to construct a suitable
+    docstring (see the examples).
 
     Both a settings instance and its `override` method should be added to the package documentation.
 
@@ -83,7 +86,7 @@ class Settings(BaseSettings):
             package_name = package_name[:dotidx]
         return package_name
 
-    def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"):
+    def __init_subclass__(subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy", "scverse"]):
         if (config := subcls.__dict__.get("model_config")) is not None:
             if not config.get("validate_assignment", True):
                 warnings.warn("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, stacklevel=2)
@@ -125,7 +128,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
-        subcls, *, exported_object_name: str, docstring_style: Literal["google", "numpy"] = "google"
+        subcls: type[Self], *, exported_object_name: str, docstring_style: Literal["google", "numpy", "scverse"]
     ) -> None:
         subcls.__doc__ = (
             _docstring_template.format(
@@ -143,10 +146,11 @@ class Settings(BaseSettings):
         for fname, field in subcls.model_fields.items():
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
-   :type: {_type_str(subcls, field)}
-   :value: {field.default!r}\n"""
+   :type: {_type_str(subcls, field)}\n"""
+            if field.default is not PydanticUndefined:
+                subcls.__doc__ += f"   :value: {field.default!r}\n"
 
-            description = f"(default `{field.default!r}`) "
+            description = ""
             if field.description is not None:
                 subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
                 description += field.description
@@ -156,13 +160,49 @@ class Settings(BaseSettings):
                     f"""    {fname} ({_type_str(subcls, field)}): {textwrap.indent(description, "        ")}\n"""
                 )
             else:
-                override_doc += f"""
-{fname} : {_type_str(subcls, field)}
+                annot = "" if docstring_style == "scverse" else f" : {_type_str(subcls, field)}"
+                override_doc += f"""\
+{fname}{annot}
 {textwrap.indent(description, "    ")}\n"""
 
-        subcls.override = copy_func(  # type: ignore[method-assign,type-var]
-            subcls.override,
-            __doc__=override_doc,
-            __module__=subcls.__module__,
-            __qualname__=f"{subcls.__qualname__}.override",
+        subcls.override = _copy_override(  # type: ignore[method-assign,type-var]
+            subcls, subcls.override, override_doc, return_annotation=AbstractContextManager[None]
         )
+
+
+class CustomRepr(str):
+    def __repr__(self) -> str:
+        return self
+
+
+def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, return_annotation: object) -> F:
+    from ._utils import Overrides
+
+    parameters = [
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
+        *[
+            inspect.Parameter(
+                n, inspect.Parameter.KEYWORD_ONLY, default=CustomRepr("<no change>"), annotation=f.annotation
+            )
+            for n, f in cls.model_fields.items()
+        ],
+    ]
+    overrides = Overrides(
+        __doc__=doc,
+        __module__=cls.__module__,
+        __qualname__=f"{cls.__qualname__}.{func.__name__}",
+        __signature__=inspect.Signature(parameters, return_annotation=return_annotation),
+        __annotations__={
+            **{name: field.annotation for name, field in cls.model_fields.items()},
+            "return": return_annotation,
+        },
+    )
+    if sys.version_info >= (3, 14):
+        from annotationlib import Format
+
+        str_annotations = {n: _type_str(cls, f) for n, f in cls.model_fields.items()}
+        overrides["__annotate__"] = lambda fmt: (
+            overrides["__annotations__"] if fmt != Format.STRING else str_annotations
+        )
+
+    return copy_func(func, **overrides)

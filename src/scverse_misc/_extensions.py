@@ -164,7 +164,7 @@ def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 
 
 
 def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
-    cls: type, canonical_instance_name: str, decorator_name: str, docstring_style: Literal["google", "numpy"] = "google"
+    cls: type, canonical_instance_name: str, decorator_name: str, docstring_style: Literal["google", "numpy", "scverse"]
 ) -> Callable[[str], Callable[[type[NameSpT]], type[NameSpT]]]:
     """Create a decorator for registering custom functionality with a class.
 
@@ -181,8 +181,9 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
             is used for run-time checking of constructor signatures of the namespace classes.
         decorator_name: The name under which the decorator is accessible in your package. This is used for
             the examples in the decorator docstring.
-        docstring_style: Whether the docstring of the generated decorator should conform to NumPy or Google
-            style.
+        docstring_style: Whether the docstring of the generated decorator should conform to `"numpy"` or
+            `"google"` style. We also support variant of `"numpy"` called `"scverse"`,
+            which does not duplicate type annotation in docstrings.
     """
     # Reserved namespaces include accessors built into cls and all current attributes of cls
     reserved_namespaces = set(dir(cls))

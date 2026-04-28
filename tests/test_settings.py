@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, cast
 
 import pytest
 from pydantic import Field, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
+from sphinx.application import Sphinx
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 from scverse_misc import Settings
@@ -19,13 +21,16 @@ if TYPE_CHECKING:
         field_int_range: int = 1
 
 
+pytest_plugins = ["sphinx.testing.fixtures"]
+
+
 @pytest.fixture
-def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
+def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy", "scverse"]:
     return getattr(request, "param", "google")
 
 
 @pytest.fixture
-def settings_class(docstring_style: Literal["google", "numpy"]) -> type[DummySettings]:
+def settings_class(docstring_style: Literal["google", "numpy", "scverse"]) -> type[DummySettings]:
     class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
         field_bool: bool = False
         """Boolean field."""
@@ -50,7 +55,7 @@ def test_defaults_override() -> None:
         pytest.warns(RuntimeWarning, match="custom env_file location"),
     ):
 
-        class WarnSettings(Settings, exported_object_name="settings"):
+        class WarnSettings(Settings, exported_object_name="settings", docstring_style="google"):
             model_config = SettingsConfigDict(
                 validate_assignment=False, use_attribute_docstrings=False, env_file="mydotenv"
             )
@@ -89,7 +94,7 @@ def test_override(settings: DummySettings) -> None:
     assert settings.field_int_range == 1
 
 
-@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
+@pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
 def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings) or "").lines()
@@ -113,7 +118,7 @@ def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettin
                 assert line == current_field.description
 
 
-@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
+@pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
 def test_override_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings.override) or "").lines()
@@ -123,8 +128,9 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
     for line in lines:
         if line.startswith(":param"):
             current_field_name, current_field = next(field_iter)
-            description = " " + current_field.description if current_field.description is not None else ""
-            assert line.startswith(f":param {current_field_name}: (default `{current_field.default!r}`){description}")
+            description = f" {current_field.description}" if current_field.description is not None else ""
+            # no default here, as the default is “leave this value alone”
+            assert line.startswith(f":param {current_field_name}:{description}")
         elif current_field is not None and len(line) > 0:
             assert current_field.annotation is not None
             assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
@@ -141,21 +147,65 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
 )
 def test_annotation_format(attr: str, expected: str) -> None:
     """Test that annotation references work correctly."""
-    from pathlib import Path
 
     class Local: ...
 
-    class S(Settings, exported_object_name="s"):
-        string: str
-        path: Path
-        local: Local
+    class S(Settings, exported_object_name="s", docstring_style="google"):
+        if attr == "string":
+            string: str
+        if attr == "path":
+            path: Path
+        if attr == "local":
+            local: Local
 
-    line_iter = iter((inspect.getdoc(S) or "").splitlines())
-    for line in line_iter:
-        if line == f".. attribute:: s.{attr}":
-            type_str = next(line_iter).strip().removeprefix(":type: ")
-            break
-    else:
-        raise AssertionError(f"Annotation for {attr} not found")
+    lines = (inspect.getdoc(S) or "").splitlines()
+    lines = lines[lines.index(f".. attribute:: s.{attr}") + 1 :]
 
-    assert type_str == expected
+    assert lines == [f"   :type: {expected}"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _sphinx_config(sphinx_test_tempdir: Path) -> None:
+    """Since we only need one, we use this instead of static roots like `@pytest.mark.sphinx('html', testroot="mybook")`."""
+    p = sphinx_test_tempdir / "root" / "conf.py"
+    p.parent.mkdir(parents=True)
+    p.write_text("""
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_autodoc_typehints"]
+typehints_defaults = "braces"
+""")
+
+
+@pytest.mark.parametrize("docstring_style", ["scverse"])
+@pytest.mark.parametrize("parent", ["class", "object"])
+def test_sphinx_autodoc_typehints(
+    subtests: pytest.Subtests,
+    app: Sphinx,
+    settings_class: type[DummySettings],
+    settings: DummySettings,
+    parent: Literal["class", "object"],
+) -> None:
+    import sphinx_autodoc_typehints
+    from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
+
+    obj = (settings if parent == "object" else settings_class).override
+    lines = (inspect.getdoc(obj) or "").splitlines()
+    lines = NumpyDocstring(lines, app.config, app, "method", "", obj).lines()
+
+    with subtests.test("napoleon"):
+        # test that napoleon can parse things correctly
+        # especially the last parameter could fail to parse if there are not enough trailing newlines
+        for name in settings_class.model_fields:
+            assert f":param {name}:" in "\n".join(lines)
+
+    sphinx_autodoc_typehints.process_docstring(app, "method", "", obj, options=None, lines=lines)
+
+    with subtests.test("type"):  # no need to test all parameters
+        assert (
+            r":type field_bool: :sphinx_autodoc_typehints_type:`\:py\:class\:\`bool\`` (default: ``<no change>``)"
+            in lines
+        )
+    with subtests.test("rtype"):
+        assert (
+            r":rtype: :sphinx_autodoc_typehints_type:`\:py\:class\:\`\~contextlib.AbstractContextManager\`\\ \\\[\:py\:obj\:\`None\`\]`"
+            in lines
+        )

@@ -1,17 +1,31 @@
 import functools
+import inspect
 import sys
+from collections.abc import Callable, Mapping
 from functools import WRAPPER_ASSIGNMENTS
 from types import FunctionType
 from typing import ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
 
 
-class Overrides(TypedDict, total=False):
+class _BaseOverrides(TypedDict, total=False):
     __module__: str
     __name__: str
     __qualname__: str
     __doc__: str
-    # ≥3.14: __annotate__, <3.14: __annotations__
+    __signature__: inspect.Signature
+    __annotations__: Mapping[str, object]
     __type_params__: tuple[TypeVar | TypeVarTuple | ParamSpec, ...]
+
+
+if sys.version_info >= (3, 14):
+    from annotationlib import Format
+
+    class Overrides(_BaseOverrides, total=False):
+        __annotate__: Callable[[Format], Mapping[str, object]]
+else:
+
+    class Overrides(_BaseOverrides, total=False):
+        pass
 
 
 def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
@@ -22,4 +36,6 @@ def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
     for key, value in overrides.items():
         setattr(new, key, value)
     copy = set(WRAPPER_ASSIGNMENTS) - overrides.keys()
-    return cast("F", functools.update_wrapper(new, func, assigned=copy))
+    wrapper = functools.update_wrapper(new, func, assigned=copy)
+    del wrapper.__wrapped__  # otherwise sphinx will try to document that.
+    return cast("F", wrapper)
