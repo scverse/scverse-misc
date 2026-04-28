@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning][].
 
 ### Changed
 
-- The `Settings` class now requires passing a `docstring_style` argument.
+- The `Settings` class and the `make_register_namespace_decorator` function now require passing a `docstring_style` argument.
 
 ### Fixed
 
