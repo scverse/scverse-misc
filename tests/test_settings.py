@@ -128,8 +128,9 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
     for line in lines:
         if line.startswith(":param"):
             current_field_name, current_field = next(field_iter)
-            description = " " + current_field.description if current_field.description is not None else ""
-            assert line.startswith(f":param {current_field_name}: (default `{current_field.default!r}`){description}")
+            description = f" {current_field.description}" if current_field.description is not None else ""
+            # no default here, as the default is “leave this value alone”
+            assert line.startswith(f":param {current_field_name}:{description}")
         elif current_field is not None and len(line) > 0:
             assert current_field.annotation is not None
             assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
@@ -199,7 +200,10 @@ def test_sphinx_autodoc_typehints(
     sphinx_autodoc_typehints.process_docstring(app, "method", "", obj, options=None, lines=lines)
 
     with subtests.test("type"):  # no need to test all parameters
-        assert r":type field_bool: :sphinx_autodoc_typehints_type:`\:py\:class\:\`bool\`` (default: ``False``)" in lines
+        assert (
+            r":type field_bool: :sphinx_autodoc_typehints_type:`\:py\:class\:\`bool\`` (default: ``<no change>``)"
+            in lines
+        )
     with subtests.test("rtype"):
         assert (
             r":rtype: :sphinx_autodoc_typehints_type:`\:py\:class\:\`\~contextlib.AbstractContextManager\`\\ \\\[\:py\:obj\:\`None\`\]`"

@@ -147,11 +147,9 @@ class Settings(BaseSettings):
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
    :type: {_type_str(subcls, field)}\n"""
-            if field.default is PydanticUndefined:
-                description = ""
-            else:
+            description = ""
+            if field.default is not PydanticUndefined:
                 subcls.__doc__ += f"   :value: {field.default!r}\n"
-                description = "" if docstring_style == "scverse" else f"(default `{field.default!r}`) "
 
             if field.description is not None:
                 subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
@@ -172,13 +170,20 @@ class Settings(BaseSettings):
         )
 
 
+class CustomRepr(str):
+    def __repr__(self) -> str:
+        return self
+
+
 def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, return_annotation: object) -> F:
     from ._utils import Overrides
 
     parameters = [
         inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
         *[
-            inspect.Parameter(n, inspect.Parameter.KEYWORD_ONLY, default=f.default, annotation=f.annotation)
+            inspect.Parameter(
+                n, inspect.Parameter.KEYWORD_ONLY, default=CustomRepr("<no change>"), annotation=f.annotation
+            )
             for n, f in cls.model_fields.items()
         ],
     ]
