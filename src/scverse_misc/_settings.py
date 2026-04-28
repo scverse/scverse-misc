@@ -198,9 +198,11 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, retu
         },
     )
     if sys.version_info >= (3, 14):
+        from annotationlib import Format
+
         str_annotations = {n: _type_str(cls, f) for n, f in cls.model_fields.items()}
-        # All formats can be real values except for STRING:
-        # see https://docs.python.org/3/library/annotationlib.html#annotationlib.Format
-        overrides["__annotate__"] = lambda fmt: overrides["__annotations__"] if fmt != 4 else str_annotations
+        overrides["__annotate__"] = lambda fmt: (
+            overrides["__annotations__"] if fmt != Format.STRING else str_annotations
+        )
 
     return copy_func(func, **overrides)
