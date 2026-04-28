@@ -10,10 +10,17 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.0.5]
 
+### Added
+
+- The `docstring_style` used by scanpy, `"scverse"`, which looks like `"numpy"` but with no parameter types in the docstring.
+
 ### Changed
 
 - The `Settings` class now requires passing a `docstring_style` argument.
-- The `docstring_style` used by scanpy, `"scverse"`, has been added.
+
+### Fixed
+
+- The `Settings` docstrings longer have `:value: PydanticUndefined` for fields with no defaults.
 
 ## [0.0.4]
 

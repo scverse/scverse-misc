@@ -146,16 +146,14 @@ def test_annotation_format(attr: str, expected: str) -> None:
     class Local: ...
 
     class S(Settings, exported_object_name="s", docstring_style="google"):
-        string: str
-        path: Path
-        local: Local
+        if attr == "string":
+            string: str
+        if attr == "path":
+            path: Path
+        if attr == "local":
+            local: Local
 
-    line_iter = iter((inspect.getdoc(S) or "").splitlines())
-    for line in line_iter:
-        if line == f".. attribute:: s.{attr}":
-            type_str = next(line_iter).strip().removeprefix(":type: ")
-            break
-    else:
-        raise AssertionError(f"Annotation for {attr} not found")
+    lines = (inspect.getdoc(S) or "").splitlines()
+    lines = lines[lines.index(f".. attribute:: s.{attr}") + 1 :]
 
-    assert type_str == expected
+    assert lines == [f"   :type: {expected}"]

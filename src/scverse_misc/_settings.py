@@ -11,6 +11,7 @@ from typing import Literal, Self
 
 import dotenv
 from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from ._utils import copy_func
@@ -145,10 +146,13 @@ class Settings(BaseSettings):
         for fname, field in subcls.model_fields.items():
             subcls.__doc__ += f"""
 .. attribute:: {exported_object_name}.{fname}
-   :type: {_type_str(subcls, field)}
-   :value: {field.default!r}\n"""
+   :type: {_type_str(subcls, field)}\n"""
+            if field.default is PydanticUndefined:
+                description = ""
+            else:
+                subcls.__doc__ += f"   :value: {field.default!r}\n"
+                description = f"(default `{field.default!r}`) "
 
-            description = f"(default `{field.default!r}`) "
             if field.description is not None:
                 subcls.__doc__ += f"\n{textwrap.indent(field.description, '   ')}\n"
                 description += field.description
@@ -189,7 +193,7 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, retu
         },
     )
     if sys.version_info >= (3, 14):
-        str_annotations = {n: _type_str(f) for n, f in cls.model_fields.items()}
+        str_annotations = {n: _type_str(cls, f) for n, f in cls.model_fields.items()}
         overrides["__annotate__"] = lambda fmt: overrides["__annotations__"] if fmt != 4 else str_annotations
 
     return copy_func(func, **overrides)
