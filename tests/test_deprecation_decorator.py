@@ -1,9 +1,12 @@
+import inspect
+import warnings
 from collections.abc import Callable
-from typing import cast
+from typing import Literal, cast, get_args
 
 import pytest
+from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
-from scverse_misc import Deprecation, deprecated
+from scverse_misc import Deprecation, deprecated, deprecated_arg
 
 
 @pytest.fixture(params=[pytest.param(None, id="no_message"), pytest.param("Test message.", id="message")])
@@ -11,42 +14,72 @@ def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
 
-@pytest.fixture(
-    params=[
-        pytest.param(None, id="no_docstring"),
-        pytest.param("Test function", id="short"),
-        pytest.param(
-            """Test function
+type DocstringStyles = Literal["no_docstring", "short", "long_numpystyle", "long_googlestyle"]
+
+
+@pytest.fixture(params=get_args(DocstringStyles.__value__))
+def docstring_style(request: pytest.FixtureRequest) -> DocstringStyles:
+    return cast(DocstringStyles, request.param)
+
+
+@pytest.fixture
+def docstring(docstring_style: DocstringStyles) -> str | None:
+    match docstring_style:
+        case "no_docstring":
+            return None
+        case "short":
+            return "Test function"
+        case "long_numpystyle":
+            return """Test function
 
             This is a test.
 
             Parameters
             ----------
-            foo
+            positional_only_no_default
+                foo
+            positional_only_default
                 bar
-            bar
+            positional_or_keyword_default
                 baz
-            """,
-            id="long",
-        ),
-    ]
-)
-def docstring(request: pytest.FixtureRequest) -> str | None:
-    return cast(str | None, request.param)
+            keyword_only_default
+                foobar
+            """
+        case "long_googlestyle":
+            return """Test function
+
+            This is a test.
+
+            Args:
+                positional_only_no_default: foo
+                positional_only_default: bar
+                positional_or_keyword_default: baz
+                keyword_only_default: foobar
+            """
 
 
 @pytest.fixture
-def deprecated_func(msg: str | None, docstring: str | None) -> Callable[[int, int], int]:
-    def func(foo: int, bar: int) -> int:
+def func(msg: str | None, docstring: str | None) -> Callable[..., int]:
+    def _func(
+        positional_only_no_default: int,
+        positional_only_default: int = 1337,
+        /,
+        positional_or_keyword_default: int = 42,
+        *,
+        keyword_only_default: float = 3.1415,
+    ) -> int:
         return 42
 
-    func.__doc__ = docstring
+    _func.__doc__ = docstring
+    return _func
+
+
+@pytest.fixture
+def deprecated_func(msg: str | None, func: Callable[..., int]) -> Callable[..., int]:
     return deprecated(Deprecation("foo", msg or ""))(func)
 
 
-def test_deprecation_decorator(
-    deprecated_func: Callable[[int, int], int], docstring: str | None, msg: str | None
-) -> None:
+def test_deprecation_decorator(deprecated_func: Callable[..., int], docstring: str | None, msg: str | None) -> None:
     with pytest.warns(FutureWarning, match="deprecated"):
         assert deprecated_func(1, 2) == 42
 
@@ -63,3 +96,45 @@ def test_deprecation_decorator(
             assert len(lines) == 3 or not lines[3].startswith("   ")
         else:
             assert lines[3] == f"   {msg}"
+
+
+@pytest.mark.parametrize(
+    "arg",
+    ("positional_only_no_default", "positional_only_default", "positional_or_keyword_default", "keyword_only_default"),
+)
+def test_deprecated_arg_decorator(
+    func: Callable[..., int], msg: str | None, arg: str, docstring_style: DocstringStyles
+) -> None:
+    deprecated_func = deprecated_arg(arg, Deprecation("2.718", msg or ""))(func)
+    with pytest.warns(FutureWarning, match=f"{arg} is deprecated"):
+        assert deprecated_func(1, 2, 3, keyword_only_default=4.0) == 42
+
+    if arg != "positional_only_no_default":
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert deprecated_func(1) == 42
+
+    parser: type[NumpyDocstring] | type[GoogleDocstring] | None = None
+    if docstring_style == "long_numpystyle":
+        parser = NumpyDocstring
+    elif docstring_style == "long_googlestyle":
+        parser = GoogleDocstring
+
+    if parser is None:
+        return
+
+    lines = parser(inspect.getdoc(deprecated_func) or "").lines()
+
+    for i, line in enumerate(lines):
+        if line.startswith(prefix := f":param {arg}: "):
+            prefixlen = len(prefix)
+            if msg is not None:
+                stripped = lines[i + 1].strip()
+                assert stripped == ".. version-deprecated:: 2.718"
+                assert lines[i + 2][prefixlen:] == f"   {msg}"
+                assert not lines[i + 3]
+                assert lines[i + 4][:prefixlen] == " " * prefixlen
+            else:
+                assert line == f":param {arg}: .. version-deprecated:: 2.718"
+                assert not lines[i + 1]
+                assert lines[i + 2][:prefixlen] == " " * prefixlen

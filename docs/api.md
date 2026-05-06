@@ -27,6 +27,7 @@ Types used by the former:
    :toctree: generated
 
    deprecated
+   deprecated_arg
    Deprecation
 ```
 
