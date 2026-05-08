@@ -6,7 +6,13 @@ import pytest
 from scverse_misc import Deprecation, deprecated
 
 
-@pytest.fixture(params=[pytest.param(None, id="no_message"), pytest.param("Test message.", id="message")])
+@pytest.fixture(
+    params=[
+        pytest.param(None, id="no_message"),
+        pytest.param("Test message.", id="short_message"),
+        pytest.param("Test\nmessage.", id="long_message"),
+    ]
+)
 def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
