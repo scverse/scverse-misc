@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from inspect import getdoc
+from textwrap import indent
 from typing import TYPE_CHECKING, LiteralString
 
 if sys.version_info >= (3, 13):
@@ -54,13 +55,15 @@ def _deprecated_at[F: Callable[..., object]](
 
     def decorate(func: F) -> F:
         kind = "function" if func.__name__ == func.__qualname__ else "method"
-        warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future."
+        warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
 
         doc = getdoc(func)
         docmsg = f".. version-deprecated:: {msg.version_deprecated}"
         if len(msg):
-            docmsg += f"\n   {msg}"
-            warnmsg += f" {msg}"
+            docmsg += f"\n{indent(msg, 3 * ' ')}"
+            warnmsg += f". {msg}" if msg.count("\n") == 0 else f":\n{indent(msg, 4 * ' ')}"
+        else:
+            warnmsg += "."
 
         if doc is None:
             doc = docmsg
