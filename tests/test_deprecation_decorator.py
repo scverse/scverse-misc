@@ -52,14 +52,17 @@ def test_deprecation_decorator(
 
     assert deprecated_func.__doc__ is not None
     lines = deprecated_func.__doc__.expandtabs().splitlines()
-    if docstring is None:
-        assert lines[0].startswith(".. version-deprecated::")
-    else:
+    offset = 0 if docstring is None else 2
+
+    if docstring is not None:
         lines_orig = docstring.expandtabs().splitlines()
         assert lines[0] == lines_orig[0]
-        assert len(lines[1].strip()) == 0
-        assert lines[2].startswith(".. version-deprecated")
-        if msg is None:
-            assert len(lines) == 3 or not lines[3].startswith("   ")
-        else:
-            assert lines[3] == f"   {msg}"
+        assert len(lines[1].strip()) == 0, "expected empty line following summary"
+
+    assert lines[offset].startswith(".. version-deprecated")
+    if msg is None:
+        assert len(lines) == offset + 1 or not lines[offset + 1].startswith("   ")
+    else:
+        msg_lines = msg.splitlines()
+        msg_indented = [f"   {line}" for line in msg_lines]
+        assert lines[offset + 1 : offset + 1 + len(msg_lines)] == msg_indented
