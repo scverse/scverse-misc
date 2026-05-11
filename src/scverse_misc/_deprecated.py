@@ -160,11 +160,11 @@ def deprecated_arg[**P, R](
                 param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
                 and arg in kwargs
             ):
-                warn(warnmsg, category=category, stacklevel=stacklevel)
+                warn(warnmsg, category=category, stacklevel=stacklevel + 1)
             else:
                 bound = sig.bind(*args, **kwargs)
                 if arg in bound.arguments and bound.arguments[arg] != param.default:
-                    warn(warnmsg, category=category, stacklevel=stacklevel)
+                    warn(warnmsg, category=category, stacklevel=stacklevel + 1)
 
             return func(*args, **kwargs)
 
