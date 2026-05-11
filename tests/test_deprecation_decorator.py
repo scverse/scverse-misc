@@ -133,7 +133,6 @@ def test_deprecated_arg_decorator(
     if parser is None:
         return
 
-    print(inspect.getdoc(deprecated_func))
     lines = parser(inspect.getdoc(deprecated_func) or "").lines()
 
     for i, line in enumerate(lines):
