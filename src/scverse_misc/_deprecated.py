@@ -109,47 +109,12 @@ def deprecated_arg[**P, R](
 
     def decorate(func: Callable[P, R]) -> Callable[P, R]:
         warnmsg = f"The argument {arg} is deprecated and will be removed in the future."
-        doc = func.__doc__
-        docmsg = f".. version-deprecated:: {msg.version_deprecated}"
-
         if len(msg):
-            docmsg += f"\n   {msg}"
             warnmsg += f" {msg}"
 
-        if doc is not None:
+        if func.__doc__ is not None:
             with suppress(ImportError):
-                from pydocstring import Docstring, Section, SectionKind, Style, emit_google, emit_numpy, parse
-
-                parsed = parse(doc)
-                model = parsed.to_model()
-                for s, section in enumerate(model.sections):
-                    if section.kind in (
-                        SectionKind.PARAMETERS,
-                        SectionKind.KEYWORD_PARAMETERS,
-                        SectionKind.OTHER_PARAMETERS,
-                    ):
-                        for p, par in enumerate(section.parameters):
-                            if arg in par.names:
-                                if par.description is not None:
-                                    docmsg += f"\n\n{par.description}"
-                                par.description = docmsg
-                                params = list(section.parameters)
-                                params[p] = par
-                                sections = list(model.sections)
-                                sections[s] = Section(section.kind, parameters=params)
-                                model = Docstring(
-                                    summary=model.summary,
-                                    extended_summary=model.extended_summary,
-                                    deprecation=model.deprecation,
-                                    sections=sections,
-                                )
-                                break
-                        break
-                match parsed.style:
-                    case Style.GOOGLE:
-                        func.__doc__ = emit_google(model)
-                    case Style.NUMPY:
-                        func.__doc__ = emit_numpy(model)
+                func.__doc__ = _deprecate_arg_doc(func.__doc__, arg=arg, msg=msg)
 
         sig = inspect.signature(func)
         param = sig.parameters[arg]
@@ -171,3 +136,42 @@ def deprecated_arg[**P, R](
         return wrapped
 
     return decorate
+
+
+def _deprecate_arg_doc(doc: str, *, arg: str, msg: Deprecation) -> str:
+    from pydocstring import Docstring, Section, SectionKind, Style, emit_google, emit_numpy, parse
+
+    docmsg = f".. version-deprecated:: {msg.version_deprecated}"
+    if len(msg):
+        docmsg += f"\n   {msg}"
+
+    parsed = parse(doc)
+    model = parsed.to_model()
+    for s, section in enumerate(model.sections):
+        if section.kind in (
+            SectionKind.PARAMETERS,
+            SectionKind.KEYWORD_PARAMETERS,
+            SectionKind.OTHER_PARAMETERS,
+        ):
+            for p, par in enumerate(section.parameters):
+                if arg in par.names:
+                    if par.description is not None:
+                        docmsg += f"\n\n{par.description}"
+                    par.description = docmsg
+                    params = list(section.parameters)
+                    params[p] = par
+                    sections = list(model.sections)
+                    sections[s] = Section(section.kind, parameters=params)
+                    model = Docstring(
+                        summary=model.summary,
+                        extended_summary=model.extended_summary,
+                        deprecation=model.deprecation,
+                        sections=sections,
+                    )
+                    break
+            break
+    match parsed.style:
+        case Style.GOOGLE:
+            return emit_google(model)
+        case Style.NUMPY:
+            return emit_numpy(model)
