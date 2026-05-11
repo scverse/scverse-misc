@@ -151,28 +151,26 @@ def _deprecate_arg_doc(doc: str, *, arg: str, msg: Deprecation) -> str:
 
     model = parsed.to_model()
     for s, section in enumerate(model.sections):
-        if section.kind in (
-            SectionKind.PARAMETERS,
-            SectionKind.KEYWORD_PARAMETERS,
-            SectionKind.OTHER_PARAMETERS,
-        ):
-            for p, par in enumerate(section.parameters):
-                if arg in par.names:
-                    if par.description is not None:
-                        docmsg += f"\n\n{par.description}"
-                    par.description = docmsg
-                    params = list(section.parameters)
-                    params[p] = par
-                    sections = list(model.sections)
-                    sections[s] = Section(section.kind, parameters=params)
-                    model = Docstring(
-                        summary=model.summary,
-                        extended_summary=model.extended_summary,
-                        deprecation=model.deprecation,
-                        sections=sections,
-                    )
-                    break
+        if section.kind not in {SectionKind.PARAMETERS, SectionKind.KEYWORD_PARAMETERS, SectionKind.OTHER_PARAMETERS}:
+            continue
+        for p, par in enumerate(section.parameters):
+            if arg not in par.names:
+                continue
+            if par.description is not None:
+                docmsg += f"\n\n{par.description}"
+            par.description = docmsg
+            params = list(section.parameters)
+            params[p] = par
+            sections = list(model.sections)
+            sections[s] = Section(section.kind, parameters=params)
+            model = Docstring(
+                summary=model.summary,
+                extended_summary=model.extended_summary,
+                deprecation=model.deprecation,
+                sections=sections,
+            )
             break
+        break
     match parsed.style:
         case Style.GOOGLE:
             return emit_google(model)
