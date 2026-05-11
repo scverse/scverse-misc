@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
+from contextlib import suppress
 from functools import wraps
 from textwrap import indent
 from typing import TYPE_CHECKING, LiteralString
@@ -108,49 +109,47 @@ def deprecated_arg[**P, R](
 
     def decorate(func: Callable[P, R]) -> Callable[P, R]:
         warnmsg = f"The argument {arg} is deprecated and will be removed in the future."
-        doc = inspect.getdoc(func)
-        docmsg = f"    .. version-deprecated:: {msg.version_deprecated}"
+        doc = func.__doc__
+        docmsg = f".. version-deprecated:: {msg.version_deprecated}"
 
         if len(msg):
-            docmsg += f"\n       {msg}"
+            docmsg += f"\n   {msg}"
             warnmsg += f" {msg}"
 
         if doc is not None:
-            lines = doc.splitlines()
-            docstring_style = None
-            in_arg_section = False
-            in_arg_header = False
-            for i, line in enumerate(lines):
-                if in_arg_header:
-                    in_arg_header = False
-                    continue
-                elif not in_arg_section and line == "Parameters" and lines[i + 1] == "----------":
-                    docstring_style = "numpy"
-                    in_arg_section = True
-                    in_arg_header = True
-                elif not in_arg_section and line == "Args:":
-                    docstring_style = "google"
-                    in_arg_section = True
-                    docmsg = indent(docmsg, "    ")
-                elif in_arg_section:
-                    if docstring_style == "numpy" and line == arg:
-                        doc = "\n".join(lines[: i + 1]) + f"\n{docmsg}\n\n" + "\n".join(lines[i + 1 :])
+            with suppress(ImportError):
+                from pydocstring import Docstring, Section, SectionKind, Style, emit_google, emit_numpy, parse
+
+                parsed = parse(doc)
+                model = parsed.to_model()
+                for s, section in enumerate(model.sections):
+                    if section.kind in (
+                        SectionKind.PARAMETERS,
+                        SectionKind.KEYWORD_PARAMETERS,
+                        SectionKind.OTHER_PARAMETERS,
+                    ):
+                        for p, par in enumerate(section.parameters):
+                            if arg in par.names:
+                                if par.description is not None:
+                                    docmsg += f"\n\n{par.description}"
+                                par.description = docmsg
+                                params = list(section.parameters)
+                                params[p] = par
+                                sections = list(model.sections)
+                                sections[s] = Section(section.kind, parameters=params)
+                                model = Docstring(
+                                    summary=model.summary,
+                                    extended_summary=model.extended_summary,
+                                    deprecation=model.deprecation,
+                                    sections=sections,
+                                )
+                                break
                         break
-                    elif docstring_style == "google" and line.startswith(prefix := f"    {arg}: "):
-                        doc = (
-                            "\n".join(lines[:i])
-                            + f"\n{prefix}\n{docmsg}\n\n        {line[len(prefix) :]}\n"
-                            + "\n".join(lines[i + 1 :])
-                        )
-                        break
-                    elif (
-                        docstring_style == "numpy"
-                        and set(line.strip()) == {"-"}
-                        or docstring_style == "google"
-                        and not line[0].isspace()
-                    ):  # next section, arg not documented
-                        break
-            func.__doc__ = doc
+                match parsed.style:
+                    case Style.GOOGLE:
+                        func.__doc__ = emit_google(model)
+                    case Style.NUMPY:
+                        func.__doc__ = emit_numpy(model)
 
         sig = inspect.signature(func)
         param = sig.parameters[arg]

@@ -43,6 +43,7 @@ repos:
       args: []
       additional_dependencies:
       - pydantic-settings
+      - pydocstring-rs
       - pytest
       - sphinx
       - sphinx-autodoc-typehints

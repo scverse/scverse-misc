@@ -58,7 +58,8 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
 
             Args:
                 positional_only_no_default: foo
-                positional_only_default: bar
+                positional_only_default: bar lorem ipsum
+                    test
                 positional_or_keyword_default: baz
                 keyword_only_default: foobar
             """
@@ -132,6 +133,7 @@ def test_deprecated_arg_decorator(
     if parser is None:
         return
 
+    print(inspect.getdoc(deprecated_func))
     lines = parser(inspect.getdoc(deprecated_func) or "").lines()
 
     for i, line in enumerate(lines):
