@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## [0.0.6]
+
+### Added
+
+- A `deprecated_arg` decorator to deprecate function arguments.
+
 ## [0.0.5]
 
 ### Added
@@ -49,6 +55,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.0.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.6
 [0.0.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.5
 [0.0.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.4
 [0.0.3]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.3

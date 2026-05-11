@@ -1,9 +1,9 @@
 from contextlib import suppress
 
-from ._deprecated import Deprecation, deprecated
+from ._deprecated import Deprecation, deprecated, deprecated_arg
 from ._extensions import ExtensionNamespace, make_register_namespace_decorator
 
-__all__ = ["ExtensionNamespace", "make_register_namespace_decorator", "deprecated", "Deprecation"]
+__all__ = ["ExtensionNamespace", "make_register_namespace_decorator", "deprecated", "deprecated_arg", "Deprecation"]
 
 with suppress(ImportError):
     from ._settings import Settings
