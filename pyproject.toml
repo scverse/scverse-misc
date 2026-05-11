@@ -27,7 +27,7 @@ dependencies = [
   "typing-extensions; python_version<'3.13'",
 ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
-optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.12" ]
+optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
 urls.Homepage = "https://github.com/scverse/scverse-misc"
