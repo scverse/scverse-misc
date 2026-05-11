@@ -146,6 +146,9 @@ def _deprecate_arg_doc(doc: str, *, arg: str, msg: Deprecation) -> str:
         docmsg += f"\n   {msg}"
 
     parsed = parse(doc)
+    if parsed.style is Style.PLAIN:
+        return doc
+
     model = parsed.to_model()
     for s, section in enumerate(model.sections):
         if section.kind in (
@@ -175,3 +178,5 @@ def _deprecate_arg_doc(doc: str, *, arg: str, msg: Deprecation) -> str:
             return emit_google(model)
         case Style.NUMPY:
             return emit_numpy(model)
+        case _:  # pragma: no cover
+            raise AssertionError
