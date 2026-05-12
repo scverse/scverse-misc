@@ -126,6 +126,31 @@ class Settings(BaseSettings):
             for argname, argval in reversed(oldsettings.items()):
                 setattr(self, argname, argval)
 
+    def reset(self, *args: str) -> AbstractContextManager[frozenset[str]]:
+        """Reset passed settings to their default values.
+
+        Can be used as a context manager to make the resets temporary.
+        On `__enter__`, the context manager returns the settings that have been changed.
+        """
+        prev_values = {arg: getattr(self, arg) for arg in args if arg in self.model_fields_set}
+
+        # since we want to allow using this method imperatively,
+        # eagerly do the reset here instead of returning a context manager with a lazy `__enter__`.
+        for arg in prev_values:
+            default = type(self).model_fields[arg].get_default()
+            setattr(self, arg, default)
+            self.model_fields_set.remove(arg)
+
+        class Cm(AbstractContextManager[frozenset[str]]):
+            def __enter__(self) -> frozenset[str]:
+                return frozenset(prev_values)
+
+            def __exit__(self, *_: object) -> None:
+                for arg, value in prev_values.items():
+                    setattr(self, arg, value)
+
+        return Cm()
+
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
         subcls: type[Self], *, exported_object_name: str, docstring_style: Literal["google", "numpy", "scverse"]
