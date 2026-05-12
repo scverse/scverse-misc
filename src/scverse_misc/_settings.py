@@ -142,10 +142,10 @@ class Settings(BaseSettings):
             self.model_fields_set.remove(arg)
 
         class Cm(AbstractContextManager[frozenset[str]]):
-            def __enter__(self) -> frozenset[str]:
+            def __enter__(_self) -> frozenset[str]:
                 return frozenset(prev_values)
 
-            def __exit__(self, *_: object) -> None:
+            def __exit__(_self, *_: object) -> None:
                 for arg, value in prev_values.items():
                     setattr(self, arg, value)
 
