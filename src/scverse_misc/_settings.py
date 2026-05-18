@@ -7,7 +7,7 @@ import warnings
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from types import FunctionType, GenericAlias
-from typing import Literal, Self
+from typing import Literal, LiteralString, Self
 
 import dotenv
 from pydantic.fields import FieldInfo
@@ -112,19 +112,44 @@ class Settings(BaseSettings):
         super().__init_subclass__()
 
     @contextmanager
-    def override(self, **kwargs: object) -> Generator[None]:
+    def override(self, **overrides: object) -> Generator[None]:
         """Context manager for local setting overrides.
 
         Subclasses will get a version with a docstring detailing the available parameters.
         """
-        oldsettings = {argname: getattr(self, argname) for argname in kwargs.keys()}
+        oldsettings = {argname: getattr(self, argname) for argname in overrides.keys()}
         try:
-            for argname, argval in kwargs.items():
+            for argname, argval in overrides.items():
                 setattr(self, argname, argval)
             yield
         finally:
             for argname, argval in reversed(oldsettings.items()):
                 setattr(self, argname, argval)
+
+    def reset(self, *names: LiteralString) -> AbstractContextManager[frozenset[LiteralString]]:
+        """Reset passed settings to their default values.
+
+        Can be used as a context manager to make the resets temporary.
+        On `__enter__`, the context manager returns the settings that have been changed.
+        """
+        prev_values = {name: getattr(self, name) for name in names if name in self.model_fields_set}
+
+        # since we want to allow using this method imperatively,
+        # eagerly do the reset here instead of returning a context manager with a lazy `__enter__`.
+        for name in prev_values:
+            default = type(self).model_fields[name].get_default()
+            setattr(self, name, default)
+            self.model_fields_set.remove(name)
+
+        class Cm(AbstractContextManager[frozenset[str]]):
+            def __enter__(_self) -> frozenset[str]:
+                return frozenset(prev_values)
+
+            def __exit__(_self, *_: object) -> None:
+                for arg, value in prev_values.items():
+                    setattr(self, arg, value)
+
+        return Cm()
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
@@ -168,6 +193,7 @@ class Settings(BaseSettings):
         subcls.override = _copy_override(  # type: ignore[method-assign,type-var]
             subcls, subcls.override, override_doc, return_annotation=AbstractContextManager[None]
         )
+        subcls.reset = _copy_reset(subcls, subcls.reset)  # type: ignore[method-assign,type-var]
 
 
 class CustomRepr(str):
@@ -201,6 +227,32 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, retu
         from annotationlib import Format
 
         str_annotations = {n: _type_str(cls, f) for n, f in cls.model_fields.items()}
+        overrides["__annotate__"] = lambda fmt: (
+            overrides["__annotations__"] if fmt != Format.STRING else str_annotations
+        )
+
+    return copy_func(func, **overrides)
+
+
+def _copy_reset[F: FunctionType](cls: type[Settings], func: F) -> F:
+    from ._utils import Overrides
+
+    args_t = Literal[tuple(cls.model_fields.keys())]  # type: ignore[valid-type]
+    parameters = [
+        inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
+        inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL, annotation=args_t),
+    ]
+    return_annotation = AbstractContextManager[frozenset[args_t]]  # type: ignore[valid-type]
+    overrides = Overrides(
+        __module__=cls.__module__,
+        __qualname__=f"{cls.__qualname__}.{func.__name__}",
+        __signature__=inspect.Signature(parameters, return_annotation=return_annotation),
+        __annotations__={"args": args_t, "return": return_annotation},
+    )
+    if sys.version_info >= (3, 14):
+        from annotationlib import Format
+
+        str_annotations = {n: str(t) for n, t in overrides["__annotations__"].items()}
         overrides["__annotate__"] = lambda fmt: (
             overrides["__annotations__"] if fmt != Format.STRING else str_annotations
         )

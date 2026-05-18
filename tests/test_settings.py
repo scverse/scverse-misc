@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import inspect
+import sys
+from contextlib import nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args
 
 import pytest
 from pydantic import Field, ValidationError
@@ -87,11 +89,40 @@ def test_override(settings: DummySettings) -> None:
         assert settings.field_bool is True
     assert settings.field_bool is False
 
+
+def test_override_error(settings: DummySettings) -> None:
     with pytest.raises(ValidationError):
         with settings.override(field_int_range=3, field_no_docstring=1.1):
             pass
     assert settings.field_no_docstring == 42
     assert settings.field_int_range == 1
+
+
+@pytest.mark.parametrize("temp", [True, False], ids=["temporary", "permanent"])
+def test_reset(settings: DummySettings, temp: bool) -> None:
+    default = settings.field_bool
+    settings.field_bool = not default
+    undo_reset = settings.reset("field_bool")
+    with undo_reset if temp else nullcontext():
+        assert settings.field_bool is default
+    assert settings.field_bool is (not default if temp else default)
+
+
+def test_reset_signature(settings: DummySettings) -> None:
+    sig = inspect.signature(settings.reset)
+    assert get_args(sig.parameters["args"].annotation) == ("field_bool", "field_no_docstring", "field_int_range")
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="requires annotationlib")
+def test_reset_annotations(settings: DummySettings) -> None:
+    from contextlib import AbstractContextManager
+
+    import annotationlib
+
+    assert annotationlib.get_annotations(settings.reset) == {
+        "args": Literal["field_bool", "field_no_docstring", "field_int_range"],
+        "return": AbstractContextManager[frozenset[Literal["field_bool", "field_no_docstring", "field_int_range"]]],
+    }
 
 
 @pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
