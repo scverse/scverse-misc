@@ -112,34 +112,34 @@ class Settings(BaseSettings):
         super().__init_subclass__()
 
     @contextmanager
-    def override(self, **kwargs: object) -> Generator[None]:
+    def override(self, **overrides: object) -> Generator[None]:
         """Context manager for local setting overrides.
 
         Subclasses will get a version with a docstring detailing the available parameters.
         """
-        oldsettings = {argname: getattr(self, argname) for argname in kwargs.keys()}
+        oldsettings = {argname: getattr(self, argname) for argname in overrides.keys()}
         try:
-            for argname, argval in kwargs.items():
+            for argname, argval in overrides.items():
                 setattr(self, argname, argval)
             yield
         finally:
             for argname, argval in reversed(oldsettings.items()):
                 setattr(self, argname, argval)
 
-    def reset(self, *args: LiteralString) -> AbstractContextManager[frozenset[LiteralString]]:
+    def reset(self, *names: LiteralString) -> AbstractContextManager[frozenset[LiteralString]]:
         """Reset passed settings to their default values.
 
         Can be used as a context manager to make the resets temporary.
         On `__enter__`, the context manager returns the settings that have been changed.
         """
-        prev_values = {arg: getattr(self, arg) for arg in args if arg in self.model_fields_set}
+        prev_values = {name: getattr(self, name) for name in names if name in self.model_fields_set}
 
         # since we want to allow using this method imperatively,
         # eagerly do the reset here instead of returning a context manager with a lazy `__enter__`.
-        for arg in prev_values:
-            default = type(self).model_fields[arg].get_default()
-            setattr(self, arg, default)
-            self.model_fields_set.remove(arg)
+        for name in prev_values:
+            default = type(self).model_fields[name].get_default()
+            setattr(self, name, default)
+            self.model_fields_set.remove(name)
 
         class Cm(AbstractContextManager[frozenset[str]]):
             def __enter__(_self) -> frozenset[str]:
