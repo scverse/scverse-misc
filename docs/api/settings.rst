@@ -6,3 +6,4 @@ scverse\_misc.Settings
 .. autoclass:: Settings
 
     .. automethod:: override
+    .. automethod:: reset
