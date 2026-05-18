@@ -193,7 +193,7 @@ class Settings(BaseSettings):
         subcls.override = _copy_override(  # type: ignore[method-assign,type-var]
             subcls, subcls.override, override_doc, return_annotation=AbstractContextManager[None]
         )
-        subcls.reset = _copy_reset(subcls, subcls.reset)
+        subcls.reset = _copy_reset(subcls, subcls.reset)  # type: ignore[method-assign,type-var]
 
 
 class CustomRepr(str):
@@ -237,12 +237,12 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, doc: str, retu
 def _copy_reset[F: FunctionType](cls: type[Settings], func: F) -> F:
     from ._utils import Overrides
 
-    args_t = Literal[tuple(cls.model_fields.keys())]
+    args_t = Literal[tuple(cls.model_fields.keys())]  # type: ignore[valid-type]
     parameters = [
         inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
         inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL, annotation=args_t),
     ]
-    return_annotation = AbstractContextManager[frozenset[args_t]]
+    return_annotation = AbstractContextManager[frozenset[args_t]]  # type: ignore[valid-type]
     overrides = Overrides(
         __module__=cls.__module__,
         __qualname__=f"{cls.__qualname__}.{func.__name__}",
