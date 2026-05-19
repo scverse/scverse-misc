@@ -171,21 +171,22 @@ def test_override_docs(docstring_style: Literal["google", "numpy"], settings: Du
     ("attr", "expected"),
     [
         pytest.param("string", "str", id="builtin"),
-        pytest.param("path", "pathlib.Path", id="3rd-party"),
+        pytest.param("pattern", "re.Pattern[str]", id="import"),
         # same module as `S`, so no leading `tests.test_settings.`
         pytest.param("local", "test_annotation_format.<locals>.Local", id="same-module"),
     ],
 )
 def test_annotation_format(attr: str, expected: str) -> None:
     """Test that annotation references work correctly."""
+    import re
 
     class Local: ...
 
     class S(Settings, exported_object_name="s", docstring_style="google"):
         if attr == "string":
             string: str
-        if attr == "path":
-            path: Path
+        if attr == "pattern":
+            pattern: re.Pattern[str]
         if attr == "local":
             local: Local
 
