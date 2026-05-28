@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import textwrap
+import warnings
+from types import GenericAlias, MethodType
+from typing import TYPE_CHECKING, Any, cast
 
-from pydocstring import Docstring, Section, SectionKind, Style, emit_google, emit_numpy, parse
+from pydantic_core import PydanticUndefined
+from pydocstring import Docstring, Parameter, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
 from .._deprecated import deprecated_arg
+from .._settings import Settings
+from .._utils import get_packagename
 from .._version import __version__
 
 if TYPE_CHECKING:
+    from pydantic.fields import FieldInfo
     from sphinx.application import Sphinx
     from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
@@ -27,6 +34,10 @@ def _process_docstring(
     match objtype:
         case "function" | "class" if hasattr(obj, "__scverse_misc_deprecated_arg__"):
             _process_deprecated_args(obj.__scverse_misc_deprecated_arg__, lines)
+        case "data" if isinstance(obj, Settings):
+            _process_settings_object(obj, name, lines)
+        case "method" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
+            _process_settings_method(app, obj, lines)
 
 
 def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str]) -> None:
@@ -73,4 +84,84 @@ def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str
         case _:  # pragma: no cover
             raise AssertionError
 
+    lines[:] = doc.splitlines()
+
+
+def _type_str(cls: object, field: FieldInfo) -> str:
+    if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
+        return str(field.annotation)
+    if field.annotation.__module__ in {"builtins", cls.__module__}:
+        return field.annotation.__qualname__
+    return f"{field.annotation.__module__}.{field.annotation.__qualname__}"
+
+
+_settings_docstring_template = """Allows users to customize settings for the `{package}` package.
+
+Settings here will generally be for advanced use-cases and should be used with caution.
+
+For setting an option use :func:`~{name}.override` (local) or set the attributes directly (global)
+e.g., `{name}.my_setting = foo`. For assignment by environment variable, use the variable name in
+all caps with `{env_prefix}` as the prefix before import of `{package}`.
+
+The following options are available:
+
+"""
+
+
+def _get_objname(name: str) -> str:
+    dotidx = name.rfind(".")
+    if dotidx > -1:
+        name = name[dotidx + 1 :]
+    return name
+
+
+def _process_settings_object(settings: Settings, name: str, lines: list[str]) -> None:
+    package = get_packagename(name)
+
+    doc = _settings_docstring_template.format(
+        package=package,
+        name=name,
+        env_prefix=settings.model_config["env_prefix"].upper(),
+    ).splitlines()
+
+    objname = _get_objname(name)
+    for fname, field in settings.__class__.model_fields.items():
+        doc.append(f".. attribute:: {objname}.{fname}")
+        doc.append(f"   :type: {_type_str(settings, field)}")
+
+        if field.default is not PydanticUndefined:
+            doc.append(f"   :value: {field.default!r}")
+        if field.description is not None:
+            doc.append("")
+            doc.append(f"{textwrap.indent(field.description, '   ')}")
+
+    lines[:] = doc
+
+
+def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]) -> None:
+    if settings.__name__ != "override":
+        return
+
+    settingsobj = cast(Settings, settings.__self__)
+
+    params = []
+    for fname, field in settingsobj.__class__.model_fields.items():
+        param = Parameter(names=[fname], type_annotation=_type_str(settingsobj, field), description=field.description)
+        if field.default is not PydanticUndefined:
+            param.default_value = repr(field.default)
+        params.append(param)
+
+    model = Docstring(
+        summary="Provides local override via keyword arguments as a context manager.",
+        sections=[Section(SectionKind.PARAMETERS, parameters=params)],
+    )
+    if getattr(app.config, "napoleon_google_docstring", True):
+        doc = emit_google(model)
+    elif getattr(app.config, "napoleon_numpy_docstring", True):
+        doc = emit_numpy(model)
+    else:
+        warnings.warn(
+            "Neither Google-style nor Numpy-style docstrings are enabled. Skipping docstring generation.", stacklevel=1
+        )
+        doc = ""
     lines[:] = doc.splitlines()
