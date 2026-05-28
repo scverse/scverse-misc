@@ -27,7 +27,7 @@ dependencies = [
   "typing-extensions; python_version<'3.13'",
 ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
-optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13" ]
+optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13", "sphinx>=9" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
 urls.Homepage = "https://github.com/scverse/scverse-misc"
@@ -56,7 +56,6 @@ doc = [
 ]
 
 [tool.hatch]
-version.source = "vcs"
 envs.default.installer = "uv"
 envs.default.dependency-groups = [ "dev" ]
 envs.docs.scripts.build = "sphinx-build -M html docs docs/_build {args}"
@@ -75,6 +74,8 @@ envs.hatch-test.overrides.matrix.deps.env-vars = [
   { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
 ]
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
+version.source = "vcs"
+build.hooks.vcs.version-file = "src/scverse_misc/_version.py"
 
 [tool.ruff]
 line-length = 120

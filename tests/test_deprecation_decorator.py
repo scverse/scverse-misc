@@ -6,7 +6,7 @@ from typing import Literal, cast, get_args
 import pytest
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
-from scverse_misc import Deprecation, deprecated, deprecated_arg
+from scverse_misc import Deprecation, deprecated, deprecated_arg, sphinx_ext
 
 
 @pytest.fixture(
@@ -133,7 +133,9 @@ def test_deprecated_arg_decorator(
     if parser is None:
         return
 
-    lines = parser(inspect.getdoc(deprecated_func) or "").lines()
+    lines = (inspect.getdoc(deprecated_func) or "").splitlines()
+    sphinx_ext._process_deprecated_args(deprecated_func.__scverse_misc_deprecated_arg__, lines)
+    lines = parser(lines).lines()
 
     for i, line in enumerate(lines):
         if line.startswith(prefix := f":param {arg}: "):
