@@ -3,27 +3,24 @@ from __future__ import annotations
 import inspect
 import sys
 from contextlib import nullcontext
-from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args
 
 import pytest
 from pydantic import Field, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
-from sphinx.application import Sphinx
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 from scverse_misc import Settings
 
 if TYPE_CHECKING:
+    from sphinx.application import Sphinx
+
     # Static version of the class returned by the `settings_class` fixture
     class DummySettings(Settings, exported_object_name="settings"):
         field_bool: bool = False
         field_no_docstring: int = 42
         field_int_range: int = 1
-
-
-pytest_plugins = ["sphinx.testing.fixtures"]
 
 
 @pytest.fixture
@@ -194,17 +191,6 @@ def test_annotation_format(attr: str, expected: str) -> None:
     lines = lines[lines.index(f".. attribute:: s.{attr}") + 1 :]
 
     assert lines == [f"   :type: {expected}"]
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _sphinx_config(sphinx_test_tempdir: Path) -> None:
-    """Since we only need one, we use this instead of static roots like `@pytest.mark.sphinx('html', testroot="mybook")`."""
-    p = sphinx_test_tempdir / "root" / "conf.py"
-    p.parent.mkdir(parents=True)
-    p.write_text("""
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_autodoc_typehints"]
-typehints_defaults = "braces"
-""")
 
 
 @pytest.mark.parametrize("docstring_style", ["scverse"])
