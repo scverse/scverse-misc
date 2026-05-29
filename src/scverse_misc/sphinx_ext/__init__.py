@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import textwrap
 import warnings
+from collections.abc import Callable
 from types import FunctionType, GenericAlias, MethodType
 from typing import TYPE_CHECKING, Any, cast
 
 from pydantic_core import PydanticUndefined
-from pydocstring import Docstring, Parameter, Section, SectionKind, Style, emit_google, emit_numpy, parse
+from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._settings import Settings
@@ -32,6 +33,10 @@ def _process_docstring(
     app: Sphinx, objtype: _AutodocObjType, name: str, obj: Any, options: AutodocOptions, lines: list[str]
 ) -> None:
     match objtype:
+        case "function" if hasattr(obj, "__scverse_misc_create_namespace__"):
+            _process_namespace_decorator(
+                app, name, obj.__scverse_misc_create_namespace__, obj._canonical_instance_name, lines
+            )
         case "function" | "method" | "class":
             if hasattr(obj, "__deprecated__") and isinstance(obj.__deprecated__, Deprecation):
                 _process_deprecated_function(app, obj.__deprecated__, lines)
@@ -186,6 +191,74 @@ def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]
         summary="Provides local override via keyword arguments as a context manager.",
         sections=[Section(SectionKind.PARAMETERS, parameters=params)],
     )
+    if getattr(app.config, "napoleon_google_docstring", True):
+        doc = emit_google(model)
+    elif getattr(app.config, "napoleon_numpy_docstring", True):
+        doc = emit_numpy(model)
+    else:
+        warnings.warn(
+            "Neither Google-style nor Numpy-style docstrings are enabled. Skipping docstring generation.", stacklevel=1
+        )
+        doc = ""
+    lines[:] = doc.strip("\n").splitlines()
+
+
+def _process_namespace_decorator(
+    app: Sphinx, name: str, cls: type, canonical_instance_name: str, lines: list[str]
+) -> None:
+    model = Docstring(
+        summary=f"Decorator for registering custom functionality with a :class:`~{cls.__module__}.{cls.__name__}` object.",
+        extended_summary=f"This decorator allows you to extend {cls.__name__} objects with custom methods and properties "
+        f"organized under a namespace. The namespace becomes accessible as an attribute on {cls.__name__} "
+        "instances, providing a clean way to you to add domain-specific functionality without modifying "
+        f"the {cls.__name__} class itself, or extending the class with additional methods as you see fit in your workflow.",
+        sections=[
+            Section(
+                SectionKind.PARAMETERS,
+                parameters=[
+                    Parameter(
+                        names=["name"],
+                        description="Name under which the accessor should be registered. This will be the attribute name "
+                        f"used to access your namespace's functionality on {cls.__name__} objects (e.g., `instance.name`). "
+                        f"Cannot conflict with existing {cls.__name__} attributes. The list of reserved attributes includes "
+                        f"everything outputted by `dir({cls.__name__})`.",
+                    )
+                ],
+            ),
+            Section(
+                SectionKind.RETURNS,
+                returns=[Return(description="A decorator that registers the decorated class as a custom namespace.")],
+            ),
+            Section(
+                SectionKind.NOTES,
+                body="Implementation requirements:\n\n"
+                "1. The decorated class must have an `__init__` method that accepts exactly one parameter "
+                f"(besides `self`) named `{canonical_instance_name}` and annotated with type :class:`~{cls.__module__}.{cls.__name__}`.\n"
+                f"2. The namespace will be initialized with the {cls.__name__} object on first access and then "
+                "cached on the instance.\n"
+                "3. If the namespace name conflicts with an existing namespace, a warning is issued.\n"
+                f"4. If the namespace name conflicts with a built-in {cls.__name__} attribute, an AttributeError is raised.",
+            ),
+            Section(
+                SectionKind.EXAMPLES,
+                body=f'>>> @{_get_objname(name)}("do_something")\n'
+                "... class DoSomething:\n"
+                f"...     def __init__(self, {canonical_instance_name}: {cls.__name__}):\n"
+                f"...         self._obj = {canonical_instance_name}\n"
+                "...\n"
+                "...     def has_foo(self) -> bool:\n"
+                '...         return hasattr(self._obj, "foo")\n'
+                ">>>\n"
+                f">>> # Create a {cls.__name__} object\n"
+                f">>> obj = {cls.__name__}()\n"
+                ">>>\n"
+                ">>> # use the registered namespace\n"
+                ">>> obj.do_something.has_foo()\n"
+                "False",
+            ),
+        ],
+    )
+
     if getattr(app.config, "napoleon_google_docstring", True):
         doc = emit_google(model)
     elif getattr(app.config, "napoleon_numpy_docstring", True):
