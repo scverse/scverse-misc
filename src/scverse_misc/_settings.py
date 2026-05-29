@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from types import FunctionType
-from typing import Literal, LiteralString
+from typing import Literal, LiteralString, Self
 
 import dotenv
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
@@ -109,7 +109,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def __pydantic_init_subclass__(  # type: ignore[override]
-        subcls,
+        subcls: type[Self],
         *,
         exported_object_name: str | None = None,
         docstring_style: Literal["google", "numpy", "scverse"] | None = None,

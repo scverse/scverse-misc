@@ -44,6 +44,8 @@ def _process_docstring(
             _process_namespace_decorator(
                 app, name, obj.__scverse_misc_create_namespace__, obj._canonical_instance_name, lines
             )
+        case "method" | "function" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
+            _process_settings_method(app, obj, lines)
         case "function" | "method" | "class":
             if hasattr(obj, "__deprecated__") and isinstance(obj.__deprecated__, Deprecation):
                 _process_deprecated_function(app, obj.__deprecated__, lines)
@@ -53,8 +55,6 @@ def _process_docstring(
             _process_deprecated_function(app, obj.fget.__deprecated__, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
-        case "method" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
-            _process_settings_method(app, obj, lines)
 
 
 def _emit_docstring(app: Sphinx, model: Docstring, lines: list[str]) -> None:
