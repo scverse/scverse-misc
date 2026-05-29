@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import textwrap
 import warnings
-from types import GenericAlias, MethodType
+from types import FunctionType, GenericAlias, MethodType
 from typing import TYPE_CHECKING, Any, cast
 
 from pydantic_core import PydanticUndefined
 from pydocstring import Docstring, Parameter, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
-from .._deprecated import deprecated_arg
+from .._deprecated import Deprecation, deprecated_arg
 from .._settings import Settings
 from .._utils import get_packagename
 from .._version import __version__
@@ -32,16 +32,47 @@ def _process_docstring(
     app: Sphinx, objtype: _AutodocObjType, name: str, obj: Any, options: AutodocOptions, lines: list[str]
 ) -> None:
     match objtype:
-        case "function" | "class" if hasattr(obj, "__scverse_misc_deprecated_arg__"):
-            _process_deprecated_args(obj.__scverse_misc_deprecated_arg__, lines)
+        case "function" | "method" | "class":
+            if hasattr(obj, "__deprecated__") and isinstance(obj.__deprecated__, Deprecation):
+                _process_deprecated_function(app, obj.__deprecated__, lines)
+            if hasattr(obj, "__scverse_misc_deprecated_arg__"):
+                _process_deprecated_args(obj.__scverse_misc_deprecated_arg__, lines)
+        case "property" if hasattr(obj.fget, "__deprecated__") and isinstance(obj.fget.__deprecated__, Deprecation):
+            _process_deprecated_function(app, obj.fget.__deprecated__, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
         case "method" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
             _process_settings_method(app, obj, lines)
 
 
-def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str]) -> None:
+def _process_deprecated_function(app: Sphinx, msg: Deprecation, lines: list[str]) -> None:
+    parsed = parse("\n".join(lines))
 
+    model = parsed.to_model()
+    notice = f".. version-deprecated:: {msg.version_deprecated}"
+    if len(msg):
+        notice += f"\n{textwrap.indent(msg._docmsg or '', 3 * ' ')}"
+    model = Docstring(
+        summary=model.summary,
+        extended_summary=notice + f"\n\n{model.extended_summary}",
+        deprecation=model.deprecation,
+        sections=model.sections,
+    )
+
+    if getattr(app.config, "napoleon_google_docstring", True):
+        doc = emit_google(model)
+    elif getattr(app.config, "napoleon_numpy_docstring", True):
+        doc = emit_numpy(model)
+    else:
+        warnings.warn(
+            "Neither Google-style nor Numpy-style docstrings are enabled. Skipping docstring generation.", stacklevel=1
+        )
+        return
+
+    lines[:] = doc.strip("\n").splitlines()
+
+
+def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str]) -> None:
     parsed = parse("\n".join(lines))
     if parsed.style is Style.PLAIN:
         return
@@ -84,7 +115,7 @@ def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str
         case _:  # pragma: no cover
             raise AssertionError
 
-    lines[:] = doc.splitlines()
+    lines[:] = doc.strip("\n").splitlines()
 
 
 def _type_str(cls: object, field: FieldInfo) -> str:
@@ -164,4 +195,4 @@ def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]
             "Neither Google-style nor Numpy-style docstrings are enabled. Skipping docstring generation.", stacklevel=1
         )
         doc = ""
-    lines[:] = doc.splitlines()
+    lines[:] = doc.strip("\n").splitlines()

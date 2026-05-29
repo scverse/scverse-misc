@@ -28,6 +28,7 @@ class Deprecation(str):
     """
 
     version_deprecated: LiteralString
+    _docmsg: str | None = None
 
     def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:  # type: ignore[misc]  # typing.Intersection doesn’t exist yet
         if not msg:
@@ -42,7 +43,8 @@ def _deprecated_at[F: Callable[..., object]](
 ) -> Callable[[F], F]:
     """Decorator to indicate that a class, function, or overload is deprecated.
 
-    Wraps :func:`warnings.deprecated` and additionally modifies the docstring to include a deprecation notice.
+    Wraps :func:`warnings.deprecated`. If the scverse_misc Sphinx extension is enabled, the function's documentation will
+    include a deprecation notice.
 
     Args:
         msg: The deprecation message.
@@ -58,24 +60,13 @@ def _deprecated_at[F: Callable[..., object]](
     def decorate(func: F) -> F:
         kind = "function" if func.__name__ == func.__qualname__ else "method"
         warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
-
-        doc = inspect.getdoc(func)
-        docmsg = f".. version-deprecated:: {msg.version_deprecated}"
         if len(msg):
-            docmsg += f"\n{indent(msg, 3 * ' ')}"
             warnmsg += f". {msg}" if msg.count("\n") == 0 else f":\n{indent(msg, 4 * ' ')}"
         else:
             warnmsg += "."
-
-        if doc is None:
-            doc = docmsg
-        else:
-            lines = doc.splitlines()
-            body = "\n".join(lines[1:])
-            doc = f"{lines[0]}\n\n{docmsg}\n{body}"
-        func.__doc__ = doc
-
-        return _deprecated(warnmsg, category=category, stacklevel=stacklevel)(func)
+        newmsg = Deprecation(msg.version_deprecated, warnmsg)
+        newmsg._docmsg = str(msg)
+        return _deprecated(newmsg, category=category, stacklevel=stacklevel)(func)
 
     return decorate
 
