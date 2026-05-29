@@ -10,7 +10,7 @@ import inspect
 import sys
 import warnings
 from itertools import islice
-from typing import TYPE_CHECKING, Literal, Protocol, get_type_hints, overload, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, get_type_hints, overload, runtime_checkable
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Set
@@ -164,7 +164,7 @@ def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 
 
 
 def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
-    cls: type, canonical_instance_name: str, decorator_name: str, docstring_style: Literal["google", "numpy", "scverse"]
+    cls: type, canonical_instance_name: str, decorator_name: str | None = None, docstring_style: str | None = None
 ) -> Callable[[str], Callable[[type[NameSpT]], type[NameSpT]]]:
     """Create a decorator for registering custom functionality with a class.
 
@@ -173,92 +173,34 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
     providing a clean way for users to add domain-specific functionality without modifying the `cls`
     class itself.
 
-    The return decorator will have a docstring describing how to use it along with examples.
+    If the scverse_misc Sphinx extension is enabled, the returned decorator will be documented along with examples.
 
     Args:
         cls: The class to be made extensible.
         canonical_instance_name: The typical name of an instance of `cls`, e.g. `adata` for `AnnData`. This
             is used for run-time checking of constructor signatures of the namespace classes.
-        decorator_name: The name under which the decorator is accessible in your package. This is used for
-            the examples in the decorator docstring.
-        docstring_style: Whether the docstring of the generated decorator should conform to `"numpy"` or
-            `"google"` style. We also support variant of `"numpy"` called `"scverse"`,
-            which does not duplicate type annotation in docstrings.
+        decorator_name: Deprecated and unused.
+        docstring_style: Deprecated and unused.
     """
+    if decorator_name is not None:
+        warnings.warn(
+            "The decorator_name argument is deprecated and will be removed in the future.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+    if docstring_style is not None:
+        warnings.warn(
+            "The docstring_style argument is deprecated and will be removed in the future.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
     # Reserved namespaces include accessors built into cls and all current attributes of cls
     reserved_namespaces = set(dir(cls))
 
     def decorator(name: str) -> Callable[[type[NameSpT]], type[NameSpT]]:
         return _create_namespace(name, cls, reserved_namespaces, canonical_instance_name)
 
-    decorator_arg_description = f"""Name under which the accessor should be registered. This will be the attribute name
-            used to access your namespace's functionality on {cls.__name__} objects (e.g., `instance.name`).
-            Cannot conflict with existing {cls.__name__} attributes. The list of reserved attributes includes
-            everything outputted by `dir({cls.__name__})`."""
-    decorator_return_description = "A decorator that registers the decorated class as a custom namespace."
-    decorator_notes = f"""Implementation requirements:
-
-        1. The decorated class must have an `__init__` method that accepts exactly one parameter
-           (besides `self`) named `{canonical_instance_name}` and annotated with type :class:`~{cls.__module__}.{cls.__name__}`.
-        2. The namespace will be initialized with the {cls.__name__} object on first access and then
-           cached on the instance.
-        3. If the namespace name conflicts with an existing namespace, a warning is issued.
-        4. If the namespace name conflicts with a built-in {cls.__name__} attribute, an AttributeError is raised."""
-    decorator_examples = f""">>> @{decorator_name}("do_something")
-        ... class DoSomething:
-        ...     def __init__(self, {canonical_instance_name}: {cls.__name__}):
-        ...         self._obj = {canonical_instance_name}
-        ...
-        ...     def has_foo(self) -> bool:
-        ...         return hasattr(self._obj, "foo")
-        >>>
-        >>> # Create a {cls.__name__} object
-        >>> obj = {cls.__name__}()
-        >>>
-        >>> # use the registered namespace
-        >>> obj.do_something.has_foo()
-        False"""
-
-    decorator.__doc__ = f"""Decorator for registering custom functionality with a :class:`~{cls.__module__}.{cls.__name__}` object.
-
-    This decorator allows you to extend {cls.__name__} objects with custom methods and properties
-    organized under a namespace. The namespace becomes accessible as an attribute on {cls.__name__}
-    instances, providing a clean way to you to add domain-specific functionality without modifying
-    the {cls.__name__} class itself, or extending the class with additional methods as you see fit in your workflow.
-    """
-
-    if docstring_style == "google":
-        decorator.__doc__ += f"""
-    Args:
-        name: {_indent_string_lines(decorator_arg_description, 3, 1)}
-
-    Returns:
-        {_indent_string_lines(decorator_return_description, 2, 1)}
-
-    Notes:
-        {_indent_string_lines(decorator_notes, 2, 1)}
-
-    Examples:
-        {_indent_string_lines(decorator_examples, 2, 1)}
-    """
-    else:
-        decorator.__doc__ += f"""
-    Parameters
-    ----------
-    name
-        {_indent_string_lines(decorator_arg_description, 2, 1)}
-
-    Returns
-    -------
-    {_indent_string_lines(decorator_return_description, 1, 1)}
-
-    Notes
-    -----
-    {_indent_string_lines(decorator_notes, 1, 1)}
-
-    Examples
-    --------
-    {_indent_string_lines(decorator_examples, 1, 1)}
-    """
+    decorator.__scverse_misc_create_namespace__ = cls  # type: ignore[attr-defined]
+    decorator._canonical_instance_name = canonical_instance_name  # type: ignore[attr-defined]
 
     return decorator
