@@ -6,14 +6,15 @@ from collections.abc import Callable
 from types import FunctionType, GenericAlias, MethodType
 from typing import TYPE_CHECKING, Any, cast
 
-from pydantic_core import PydanticUndefined
 from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
 from .._deprecated import Deprecation, deprecated_arg
-from .._utils import get_packagename
-from .._version import __version__
+from .._utils import get_packagename, type_str
+from .._version import __version__  # type: ignore[import-not-found,unused-ignore]
 
 try:
+    from pydantic_core import PydanticUndefined
+
     from .._settings import Settings
 except ImportError:
 
@@ -22,7 +23,6 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from pydantic.fields import FieldInfo
     from sphinx.application import Sphinx
     from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
@@ -132,14 +132,6 @@ def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str
     lines[:] = doc.strip("\n").splitlines()
 
 
-def _type_str(cls: object, field: FieldInfo) -> str:
-    if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
-        return str(field.annotation)
-    if field.annotation.__module__ in {"builtins", cls.__module__}:
-        return field.annotation.__qualname__
-    return f"{field.annotation.__module__}.{field.annotation.__qualname__}"
-
-
 _settings_docstring_template = """Allows users to customize settings for the `{package}` package.
 
 Settings here will generally be for advanced use-cases and should be used with caution.
@@ -172,7 +164,7 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
     objname = _get_objname(name)
     for fname, field in settings.__class__.model_fields.items():
         doc.append(f".. attribute:: {objname}.{fname}")
-        doc.append(f"   :type: {_type_str(settings, field)}")
+        doc.append(f"   :type: {type_str(settings, field)}")
 
         if field.default is not PydanticUndefined:
             doc.append(f"   :value: {field.default!r}")
@@ -191,7 +183,7 @@ def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]
 
     params = []
     for fname, field in settingsobj.__class__.model_fields.items():
-        param = Parameter(names=[fname], type_annotation=_type_str(settingsobj, field), description=field.description)
+        param = Parameter(names=[fname], type_annotation=type_str(settingsobj, field), description=field.description)
         if field.default is not PydanticUndefined:
             param.default_value = repr(field.default)
         params.append(param)
