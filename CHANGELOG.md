@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## [0.0.8] (unreleased)
+
+### Added
+
+- A Sphinx extension to take care of documentation. This moves docstring processing from import time to documentation building time.
+
+### Changed
+
+- Docstrings are no longer generated or modified at import time.
+
 ## [0.0.7]
 
 ### Added
@@ -61,6 +71,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.0.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.8
 [0.0.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.7
 [0.0.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.6
 [0.0.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.5

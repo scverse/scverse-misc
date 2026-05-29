@@ -173,7 +173,7 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
     providing a clean way for users to add domain-specific functionality without modifying the `cls`
     class itself.
 
-    The return decorator will have a docstring describing how to use it along with examples.
+    If the scverse_misc Sphinx extension is enabled, the returned decorator will be documented along with examples.
 
     Args:
         cls: The class to be made extensible.
