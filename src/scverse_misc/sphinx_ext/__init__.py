@@ -10,9 +10,16 @@ from pydantic_core import PydanticUndefined
 from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
 from .._deprecated import Deprecation, deprecated_arg
-from .._settings import Settings
 from .._utils import get_packagename
 from .._version import __version__
+
+try:
+    from .._settings import Settings
+except ImportError:
+
+    class Settings:  # type: ignore[no-redef] # noqa: D101
+        pass
+
 
 if TYPE_CHECKING:
     from pydantic.fields import FieldInfo
