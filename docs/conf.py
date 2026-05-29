@@ -15,6 +15,7 @@ from sphinxcontrib import katex
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
+sys.path.insert(0, str(HERE / "sphinx_ext_examples"))
 
 
 # -- Project information -----------------------------------------------------
@@ -55,6 +56,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
+    "scverse_misc.sphinx_ext",
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
     "sphinxcontrib.katex",
