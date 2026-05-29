@@ -5,8 +5,11 @@ import inspect
 import sys
 from collections.abc import Callable, Mapping
 from functools import WRAPPER_ASSIGNMENTS
-from types import FunctionType
-from typing import ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
+from types import FunctionType, GenericAlias
+from typing import TYPE_CHECKING, ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
+
+if TYPE_CHECKING:
+    from pydantic.fields import FieldInfo
 
 
 class _BaseOverrides(TypedDict, total=False):
@@ -49,3 +52,11 @@ def get_packagename(cls: type | object | str) -> str:
     if dotidx > -1:
         package_name = package_name[:dotidx]
     return package_name
+
+
+def type_str(cls: object, field: FieldInfo) -> str:
+    if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
+        return str(field.annotation)
+    if field.annotation.__module__ in {"builtins", cls.__module__}:
+        return field.annotation.__qualname__
+    return f"{field.annotation.__module__}.{field.annotation.__qualname__}"

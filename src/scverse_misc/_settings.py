@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import warnings
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
@@ -10,7 +11,7 @@ from typing import Literal, LiteralString
 import dotenv
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from ._utils import copy_func, get_packagename
+from ._utils import copy_func, get_packagename, type_str
 
 
 class Settings(BaseSettings):
@@ -186,6 +187,13 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, return_annotat
             "return": return_annotation,
         },
     )
+    if sys.version_info >= (3, 14):
+        from annotationlib import Format
+
+        str_annotations = {n: type_str(cls, f) for n, f in cls.model_fields.items()}
+        overrides["__annotate__"] = lambda fmt: (
+            overrides["__annotations__"] if fmt != Format.STRING else str_annotations
+        )
 
     return copy_func(func, **overrides)
 
@@ -205,5 +213,12 @@ def _copy_reset[F: FunctionType](cls: type[Settings], func: F) -> F:
         __signature__=inspect.Signature(parameters, return_annotation=return_annotation),
         __annotations__={"args": args_t, "return": return_annotation},
     )
+    if sys.version_info >= (3, 14):
+        from annotationlib import Format
+
+        str_annotations = {n: str(t) for n, t in overrides["__annotations__"].items()}
+        overrides["__annotate__"] = lambda fmt: (
+            overrides["__annotations__"] if fmt != Format.STRING else str_annotations
+        )
 
     return copy_func(func, **overrides)
