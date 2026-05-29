@@ -77,9 +77,11 @@ def _process_deprecated_function(app: Sphinx, msg: Deprecation, lines: list[str]
     notice = f".. version-deprecated:: {msg.version_deprecated}"
     if len(msg):
         notice += f"\n{textwrap.indent(msg._docmsg or '', 3 * ' ')}"
+    if model.extended_summary is not None:
+        notice += f"\n\n{model.extended_summary}"
     model = Docstring(
         summary=model.summary,
-        extended_summary=notice + f"\n\n{model.extended_summary}",
+        extended_summary=notice,
         deprecation=model.deprecation,
         sections=model.sections,
     )
