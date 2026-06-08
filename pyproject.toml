@@ -56,6 +56,8 @@ doc = [
 ]
 
 [tool.hatch]
+version.source = "vcs"
+build.hooks.vcs.version-file = "src/scverse_misc/_version.py"
 envs.default.installer = "uv"
 envs.default.dependency-groups = [ "dev" ]
 envs.docs.scripts.build = "sphinx-build -M html docs docs/_build {args}"
@@ -74,8 +76,6 @@ envs.hatch-test.overrides.matrix.deps.env-vars = [
   { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
 ]
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
-version.source = "vcs"
-build.hooks.vcs.version-file = "src/scverse_misc/_version.py"
 
 [tool.ruff]
 line-length = 120
