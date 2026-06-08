@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import inspect
 import sys
-from contextlib import nullcontext
+from collections.abc import Callable
+from contextlib import chdir, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args
 
@@ -32,17 +33,25 @@ def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"
 
 
 @pytest.fixture
-def settings_class(docstring_style: Literal["google", "numpy", "scverse"]) -> type[DummySettings]:
-    class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
-        field_bool: bool = False
-        """Boolean field."""
+def settings_class_factory(docstring_style: Literal["google", "numpy", "scverse"]) -> Callable[[], type[DummySettings]]:
+    def settings_class() -> type[DummySettings]:
+        class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
+            field_bool: bool = False
+            """Boolean field."""
 
-        field_no_docstring: int = 42
+            field_no_docstring: int = 42
 
-        field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
-        """Integer range field."""
+            field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
+            """Integer range field."""
 
-    return cast("type[DummySettings]", _DummySettings)
+        return cast("type[DummySettings]", _DummySettings)
+
+    return settings_class
+
+
+@pytest.fixture
+def settings_class(settings_class_factory: Callable[[], type[DummySettings]]) -> type[DummySettings]:
+    return settings_class_factory()
 
 
 @pytest.fixture
@@ -75,6 +84,24 @@ def test_env_vars(monkeypatch: pytest.MonkeyPatch, settings_class: type[DummySet
     monkeypatch.setenv("TESTS_FIELD_INT_RANGE", str(v))
     settings = settings_class()
     assert settings.field_int_range == v
+
+
+@pytest.mark.parametrize("v", [2, 4])
+def test_dotenv(
+    monkeypatch: pytest.MonkeyPatch, settings_class_factory: Callable[[], type[DummySettings]], v: int, tmp_path: Path
+) -> None:
+    env = f"""\
+SOMEVAR=true
+TESTS_FIELD_INT_RANGE={v}
+TESTS_DOES_NOT_EXIST=42
+"""
+    with open(tmp_path / ".env", "w") as dotenv:
+        dotenv.write(env)
+
+    monkeypatch.setattr(sys, "ps1", "In:", raising=False)  # to make python-dotenv look in the working directory
+    with chdir(tmp_path):
+        settings = settings_class_factory()()
+        assert settings.field_int_range == v
 
 
 def test_validate_assignment(settings: DummySettings) -> None:
