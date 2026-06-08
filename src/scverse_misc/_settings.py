@@ -104,6 +104,7 @@ class Settings(BaseSettings):
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
         config["env_file"] = dotenv.find_dotenv()
+        config["dotenv_filtering"] = "only_existing"
 
         if not config.get("env_prefix"):
             config["env_prefix"] = f"{__class__._get_packagename(subcls)}_"  # type: ignore[name-defined] # https://github.com/python/mypy/issues/4177
