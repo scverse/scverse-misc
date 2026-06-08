@@ -67,6 +67,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.0.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.8
 [0.0.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.7
 [0.0.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.6
 [0.0.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.5
