@@ -98,12 +98,18 @@ class Settings(BaseSettings):
                 warnings.warn(
                     "Setting a custom env_file location is not supported, overriding.", RuntimeWarning, stacklevel=2
                 )
+            if config.get("dotenv_filtering") is not None:
+                warnings.warn(
+                    "Setting a custom dotenv_filtering scheme is not supported, overriding.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
         else:
             config = SettingsConfigDict()
 
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
-        config["env_file"] = dotenv.find_dotenv()
+        config["env_file"] = dotenv.find_dotenv(usecwd=True)
         config["dotenv_filtering"] = "only_existing"
 
         if not config.get("env_prefix"):
