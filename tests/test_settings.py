@@ -64,11 +64,15 @@ def test_defaults_override() -> None:
         pytest.warns(RuntimeWarning, match="validate_assignment=False"),
         pytest.warns(RuntimeWarning, match="use_attribute_docstrings=False"),
         pytest.warns(RuntimeWarning, match="custom env_file location"),
+        pytest.warns(RuntimeWarning, match="dotenv_filtering scheme"),
     ):
 
         class WarnSettings(Settings, exported_object_name="settings", docstring_style="google"):
             model_config = SettingsConfigDict(
-                validate_assignment=False, use_attribute_docstrings=False, env_file="mydotenv"
+                validate_assignment=False,
+                use_attribute_docstrings=False,
+                env_file="mydotenv",
+                dotenv_filtering="match_prefix",
             )
 
             field_bool: bool = False
@@ -87,9 +91,7 @@ def test_env_vars(monkeypatch: pytest.MonkeyPatch, settings_class: type[DummySet
 
 
 @pytest.mark.parametrize("v", [2, 4])
-def test_dotenv(
-    monkeypatch: pytest.MonkeyPatch, settings_class_factory: Callable[[], type[DummySettings]], v: int, tmp_path: Path
-) -> None:
+def test_dotenv(settings_class_factory: Callable[[], type[DummySettings]], v: int, tmp_path: Path) -> None:
     env = f"""\
 SOMEVAR=true
 TESTS_FIELD_INT_RANGE={v}
@@ -98,7 +100,6 @@ TESTS_DOES_NOT_EXIST=42
     with open(tmp_path / ".env", "w") as dotenv:
         dotenv.write(env)
 
-    monkeypatch.setattr(sys, "ps1", "In:", raising=False)  # to make python-dotenv look in the working directory
     with chdir(tmp_path):
         settings = settings_class_factory()()
         assert settings.field_int_range == v
