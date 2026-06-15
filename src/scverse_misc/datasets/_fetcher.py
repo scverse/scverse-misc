@@ -71,10 +71,11 @@ class FetchContext:
         self.target_dir = target_dir
         self._base_url = base_url
 
-    def download(self, file: FileEntry) -> Path:
-        """Download a single file (cached, hash-verified) and return its local path."""
-        self.target_dir.mkdir(parents=True, exist_ok=True)
-        local = self.target_dir / file.name
+    def download(self, file: FileEntry, dest: Path | None = None) -> Path:
+        """Download a single file (cached, hash-verified) into ``dest`` (default: ``target_dir``)."""
+        target = dest or self.target_dir
+        target.mkdir(parents=True, exist_ok=True)
+        local = target / file.name
         if local.exists():
             logger.debug("Using cached file %s", local)
             return local
@@ -89,7 +90,7 @@ class FetchContext:
                     url=url,
                     known_hash=f"sha256:{file.sha256}" if file.sha256 else None,
                     fname=file.name,
-                    path=str(self.target_dir),
+                    path=str(target),
                     progressbar=True,
                 )
                 return Path(got)
@@ -98,9 +99,9 @@ class FetchContext:
                 errors.append(e)
         raise ExceptionGroup(f"Failed to download {file.name}", errors)
 
-    def download_all(self) -> list[Path]:
+    def download_all(self, dest: Path | None = None) -> list[Path]:
         """Download every file in the dataset and return their local paths."""
-        return [self.download(f) for f in self.entry.files]
+        return [self.download(f, dest) for f in self.entry.files]
 
     def extract_archive(self, archive: Path, dest: Path | None = None) -> Path:
         """Unpack a ``.zip``/``.tar.*`` archive into ``dest`` (default: the archive's directory)."""
