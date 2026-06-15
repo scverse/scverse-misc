@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 from ._registry import DatasetRegistry
 
 if TYPE_CHECKING:
-
     from ._registry import DatasetEntry, FileEntry
 
 __all__ = ["Loader", "FetchContext", "Fetcher", "register_loader", "get_loader", "available_loaders"]
