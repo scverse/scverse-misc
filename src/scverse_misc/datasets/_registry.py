@@ -75,9 +75,14 @@ class DatasetEntry:
         """Return the file matching ``name`` (exact) or ``suffix`` (endswith). Raises if not exactly one matches."""
         if (name is None) == (suffix is None):
             raise ValueError("Pass exactly one of `name` or `suffix`.")
-        matches = [f for f in self.files if (f.name == name if name is not None else f.name.endswith(suffix))]
+        if name is not None:
+            matches = [f for f in self.files if f.name == name]
+            crit = f"name={name!r}"
+        else:
+            assert suffix is not None
+            matches = [f for f in self.files if f.name.endswith(suffix)]
+            crit = f"suffix={suffix!r}"
         if len(matches) != 1:
-            crit = f"name={name!r}" if name is not None else f"suffix={suffix!r}"
             raise ValueError(f"Expected exactly one file with {crit} in {self.name!r}, found {len(matches)}.")
         return matches[0]
 

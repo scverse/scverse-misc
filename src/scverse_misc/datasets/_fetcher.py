@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, overload
 
 from ._registry import DatasetRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ._registry import DatasetEntry, FileEntry
 
 __all__ = ["Loader", "FetchContext", "Fetcher", "register_loader", "get_loader", "available_loaders"]
@@ -26,7 +28,11 @@ class Loader(Protocol):
 _LOADERS: dict[str, Loader] = {}
 
 
-def register_loader(type_name: str, loader: Loader | None = None) -> Any:
+@overload
+def register_loader(type_name: str) -> Callable[[Loader], Loader]: ...
+@overload
+def register_loader(type_name: str, loader: Loader) -> Loader: ...
+def register_loader(type_name: str, loader: Loader | None = None) -> Callable[[Loader], Loader] | Loader:
     """Register a loader for a dataset ``type``.
 
     Usable as a decorator (``@register_loader("spatialdata")``) or directly
@@ -133,7 +139,7 @@ class Fetcher:
 
 
 @register_loader("anndata")
-def _load_anndata(ctx: FetchContext, **kwargs: Any) -> Any:
+def _load_anndata(ctx: FetchContext, /, **kwargs: Any) -> Any:
     """Built-in loader: download a single ``.h5ad`` file and read it with :func:`anndata.read_h5ad`."""
     import anndata
 
