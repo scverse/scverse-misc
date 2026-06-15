@@ -87,7 +87,7 @@ def test_register_and_dispatch(registry: DatasetRegistry, tmp_path: Path) -> Non
     seen: dict[str, object] = {}
 
     @register_loader("dummy")
-    def _load(ctx: FetchContext, **kw: object) -> str:
+    def _load(ctx: FetchContext, /, **kw: object) -> str:
         seen.update(kw)
         return ctx.entry.name
 
