@@ -31,6 +31,25 @@ Types used by the former:
    Deprecation
 ```
 
+## Datasets
+
+Reusable dataset registry + downloader (requires the `datasets` extra).
+
+```{eval-rst}
+.. currentmodule:: scverse_misc.datasets
+.. autosummary::
+    :toctree: generated
+
+    DatasetRegistry
+    DatasetEntry
+    FileEntry
+    Fetcher
+    FetchContext
+    register_loader
+    get_loader
+    available_loaders
+```
+
 ## Settings
 
 ```{eval-rst}

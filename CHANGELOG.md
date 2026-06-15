@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Added
+
+- A reusable `datasets` subpackage (behind the `datasets` extra): a declarative
+  `DatasetRegistry` (YAML), a pooch-based `Fetcher` with SHA-256 verification, and a
+  pluggable loader registry (`register_loader`) so packages can share dataset-download
+  infrastructure. Ships a built-in `anndata` loader; other types are consumer-registered.
+
 ## [0.0.8]
 
 ### Fixed
