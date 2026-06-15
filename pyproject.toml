@@ -22,12 +22,14 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "anndata",
   # for debug logging (referenced from the issue template)
   "session-info2",
   "typing-extensions; python_version<'3.13'",
 ]
-optional-dependencies.datasets = [ "anndata", "pooch", "pyyaml", "tqdm" ]
+optional-dependencies.datasets = [ "pooch", "pyyaml", "tqdm" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
+optional-dependencies.spatialdata = [ "spatialdata" ]
 optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
@@ -130,7 +132,7 @@ explicit_package_bases = true
 strict = true
 overrides = [
   # optional `datasets` extra deps that ship no type information
-  { module = [ "anndata", "pooch", "yaml" ], ignore_missing_imports = true },
+  { module = [ "anndata", "pooch", "spatialdata", "yaml" ], ignore_missing_imports = true },
 ]
 
 [tool.pytest]

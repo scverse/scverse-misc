@@ -79,8 +79,8 @@ def test_file_selection_is_unambiguous(registry: DatasetRegistry) -> None:
         registry["toy"].file()
 
 
-def test_anndata_loader_is_shipped() -> None:
-    assert "anndata" in available_loaders()
+def test_builtin_loaders_are_shipped() -> None:
+    assert {"anndata", "spatialdata"} <= set(available_loaders())
 
 
 def test_register_and_dispatch(registry: DatasetRegistry, tmp_path: Path) -> None:

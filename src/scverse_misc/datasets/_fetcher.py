@@ -146,3 +146,20 @@ def _load_anndata(ctx: FetchContext, /, **kwargs: Any) -> Any:
 
     path = ctx.download(ctx.entry.file(suffix=".h5ad"))
     return anndata.read_h5ad(path, **kwargs)
+
+
+@register_loader("spatialdata")
+def _load_spatialdata(ctx: FetchContext, /, **kwargs: Any) -> Any:
+    """Built-in loader: download a ``.zip``, extract it to ``<name>.zarr`` and read it as a SpatialData object.
+
+    Needs the ``spatialdata`` extra.
+    """
+    import spatialdata as sd
+
+    zarr_path = ctx.target_dir / f"{ctx.entry.name}.zarr"
+    if not zarr_path.exists():
+        zip_path = ctx.download(ctx.entry.file(suffix=".zip"))
+        ctx.extract_archive(zip_path)
+        if not zarr_path.exists():
+            raise RuntimeError(f"Expected extracted data at {zarr_path}, but it was not found.")
+    return sd.read_zarr(zarr_path, **kwargs)

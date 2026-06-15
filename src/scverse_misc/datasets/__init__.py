@@ -2,9 +2,11 @@
 
 Define datasets in a YAML registry, then download and load them through a
 :class:`Fetcher`. Dataset ``type`` strings are dispatched against a pluggable
-loader registry (:func:`register_loader`); an ``anndata`` loader ships built in.
+loader registry (:func:`register_loader`); ``anndata`` and ``spatialdata``
+loaders ship built in.
 
-Requires the ``datasets`` extra (``pip install scverse-misc[datasets]``).
+Requires the ``datasets`` extra (``pip install scverse-misc[datasets]``); the
+built-in ``spatialdata`` loader additionally needs the ``spatialdata`` extra.
 """
 
 from __future__ import annotations

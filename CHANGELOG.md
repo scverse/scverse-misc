@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning][].
 - A reusable `datasets` subpackage (behind the `datasets` extra): a declarative
   `DatasetRegistry` (YAML), a pooch-based `Fetcher` with SHA-256 verification, and a
   pluggable loader registry (`register_loader`) so packages can share dataset-download
-  infrastructure. Ships a built-in `anndata` loader; other types are consumer-registered.
+  infrastructure. Ships built-in `anndata` and `spatialdata` loaders (the latter behind
+  the `spatialdata` extra); other types are consumer-registered.
+- `anndata` is now a core dependency.
 
 ## [0.0.8]
 
