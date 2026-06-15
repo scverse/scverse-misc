@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, overload
 
@@ -15,8 +13,6 @@ if TYPE_CHECKING:
     from ._registry import DatasetEntry, FileEntry
 
 __all__ = ["Loader", "FetchContext", "Fetcher", "register_loader", "get_loader", "available_loaders"]
-
-logger = logging.getLogger("scverse_misc.datasets")
 
 
 class Loader(Protocol):
@@ -60,55 +56,41 @@ def available_loaders() -> list[str]:
 
 
 class FetchContext:
-    """Handed to a loader: the dataset entry plus download/extract helpers.
+    """Handed to a loader: the dataset entry plus a pooch-backed download helper.
 
-    Loaders should use :meth:`download` / :meth:`download_all` / :meth:`extract_archive`
-    rather than re-implementing fetching, so hashing and caching stay consistent.
+    Loaders should use :meth:`download` / :meth:`download_all` rather than re-implementing
+    fetching, so hashing, caching and retries stay consistent. Pass a pooch ``processor``
+    (e.g. :class:`pooch.Unzip`, :class:`pooch.Untar`) to unpack archives.
     """
 
-    def __init__(self, entry: DatasetEntry, target_dir: Path, base_url: str | None) -> None:
+    def __init__(self, entry: DatasetEntry, target_dir: Path, base_url: str | None, retries: int) -> None:
         self.entry = entry
         self.target_dir = target_dir
         self._base_url = base_url
+        self._retries = retries
 
-    def download(self, file: FileEntry, dest: Path | None = None) -> Path:
-        """Download a single file (cached, hash-verified) into ``dest`` (default: ``target_dir``)."""
-        target = dest or self.target_dir
-        target.mkdir(parents=True, exist_ok=True)
-        local = target / file.name
-        if local.exists():
-            logger.debug("Using cached file %s", local)
-            return local
+    def download(self, file: FileEntry, dest: Path | None = None, processor: Any = None) -> Any:
+        """Download a file via pooch (cached, hash-verified, retried) into ``dest`` (default: ``target_dir``).
 
+        Returns the local path, or — when a pooch ``processor`` is given — whatever the processor
+        returns (e.g. the list of extracted members for :class:`pooch.Unzip`/:class:`pooch.Untar`).
+        """
         import pooch
 
-        errors: list[Exception] = []
-        for url in file.urls(self._base_url):
-            try:
-                logger.info("Downloading %s from %s", file.name, url)
-                got = pooch.retrieve(
-                    url=url,
-                    known_hash=f"sha256:{file.sha256}" if file.sha256 else None,
-                    fname=file.name,
-                    path=str(target),
-                    progressbar=True,
-                )
-                return Path(got)
-            except (OSError, ValueError, RuntimeError) as e:
-                logger.warning("Failed to download from %s: %s", url, e)
-                errors.append(e)
-        raise ExceptionGroup(f"Failed to download {file.name}", errors)
+        target = dest or self.target_dir
+        target.mkdir(parents=True, exist_ok=True)
+        pup = pooch.create(
+            path=str(target),
+            base_url="",
+            registry={file.name: f"sha256:{file.sha256}" if file.sha256 else None},
+            urls={file.name: file.urls(self._base_url)[0]},
+            retry_if_failed=self._retries,
+        )
+        return pup.fetch(file.name, processor=processor, progressbar=True)
 
-    def download_all(self, dest: Path | None = None) -> list[Path]:
+    def download_all(self, dest: Path | None = None) -> list[Any]:
         """Download every file in the dataset and return their local paths."""
         return [self.download(f, dest) for f in self.entry.files]
-
-    def extract_archive(self, archive: Path, dest: Path | None = None) -> Path:
-        """Unpack a ``.zip``/``.tar.*`` archive into ``dest`` (default: the archive's directory)."""
-        dest = dest or archive.parent
-        dest.mkdir(parents=True, exist_ok=True)
-        shutil.unpack_archive(str(archive), str(dest))
-        return dest
 
 
 class Fetcher:
@@ -121,21 +103,24 @@ class Fetcher:
     cache_dir
         Base directory for downloads. Defaults to a platform cache dir via :func:`pooch.os_cache`.
         Each dataset is stored under ``cache_dir / <type>``.
+    retries
+        Number of times pooch retries a failed download (``pooch``'s ``retry_if_failed``).
     """
 
-    def __init__(self, registry: DatasetRegistry | str, cache_dir: Path | str | None = None) -> None:
+    def __init__(self, registry: DatasetRegistry | str, cache_dir: Path | str | None = None, retries: int = 3) -> None:
         self.registry = registry if isinstance(registry, DatasetRegistry) else DatasetRegistry.from_yaml(registry)
         if cache_dir is None:
             import pooch
 
             cache_dir = pooch.os_cache("scverse_misc")
         self.cache_dir = Path(cache_dir)
+        self.retries = retries
 
     def fetch(self, name: str, **kwargs: Any) -> Any:
         """Download (if needed) and load the dataset ``name``, passing ``kwargs`` to its loader."""
         entry = self.registry[name]
         loader = get_loader(entry.type)
-        ctx = FetchContext(entry, self.cache_dir / entry.type, self.registry.base_url)
+        ctx = FetchContext(entry, self.cache_dir / entry.type, self.registry.base_url, self.retries)
         return loader(ctx, **kwargs)
 
 
@@ -154,12 +139,12 @@ def _load_spatialdata(ctx: FetchContext, /, **kwargs: Any) -> Any:
 
     Needs the ``spatialdata`` extra.
     """
+    import pooch
     import spatialdata as sd
 
+    # pooch's Unzip processor handles extraction + caching; extract_dir="." unpacks into target_dir
+    ctx.download(ctx.entry.file(suffix=".zip"), processor=pooch.Unzip(extract_dir="."))
     zarr_path = ctx.target_dir / f"{ctx.entry.name}.zarr"
     if not zarr_path.exists():
-        zip_path = ctx.download(ctx.entry.file(suffix=".zip"))
-        ctx.extract_archive(zip_path)
-        if not zarr_path.exists():
-            raise RuntimeError(f"Expected extracted data at {zarr_path}, but it was not found.")
+        raise RuntimeError(f"Expected extracted data at {zarr_path}, but it was not found.")
     return sd.read_zarr(zarr_path, **kwargs)

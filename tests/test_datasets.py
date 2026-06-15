@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import zipfile
 from typing import TYPE_CHECKING
 
 import pytest
@@ -107,12 +106,3 @@ def test_unknown_loader(registry: DatasetRegistry, tmp_path: Path) -> None:
     # "toy" is type "dummy" but no dummy loader registered here
     with pytest.raises(KeyError, match="No loader registered"):
         Fetcher(registry, cache_dir=tmp_path).fetch("toy")
-
-
-def test_extract_archive(registry: DatasetRegistry, tmp_path: Path) -> None:
-    archive = tmp_path / "a.zip"
-    with zipfile.ZipFile(archive, "w") as zf:
-        zf.writestr("inner/data.txt", "hello")
-    ctx = FetchContext(registry["toy"], tmp_path, base_url=None)
-    out = ctx.extract_archive(archive, tmp_path / "out")
-    assert (out / "inner" / "data.txt").read_text() == "hello"
