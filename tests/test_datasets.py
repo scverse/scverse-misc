@@ -60,15 +60,14 @@ def test_unknown_dataset(registry: DatasetRegistry) -> None:
         registry["nope"]
 
 
-def test_file_urls() -> None:
-    # url wins and comes first, then base_url/s3_key
-    f = FileEntry(name="x.zip", url="https://z/x.zip", s3_key="x.zip")
-    assert f.urls("https://b/") == ["https://z/x.zip", "https://b/x.zip"]
-    # s3_key only needs a base_url
-    assert FileEntry(name="x", s3_key="k").urls("https://b") == ["https://b/k"]
+def test_resolve_url() -> None:
+    # explicit url takes precedence over s3_key
+    assert FileEntry(name="x.zip", url="https://z/x.zip", s3_key="x.zip").resolve_url("https://b/") == "https://z/x.zip"
+    # s3_key resolves against base_url
+    assert FileEntry(name="x", s3_key="k").resolve_url("https://b") == "https://b/k"
     # neither resolvable -> error
     with pytest.raises(ValueError, match="neither"):
-        FileEntry(name="x", s3_key="k").urls(None)
+        FileEntry(name="x", s3_key="k").resolve_url(None)
 
 
 def test_file_selection_is_unambiguous(registry: DatasetRegistry) -> None:

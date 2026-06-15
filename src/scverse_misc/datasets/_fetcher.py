@@ -58,9 +58,9 @@ def available_loaders() -> list[str]:
 class FetchContext:
     """Handed to a loader: the dataset entry plus a pooch-backed download helper.
 
-    Loaders should use :meth:`download` / :meth:`download_all` rather than re-implementing
-    fetching, so hashing, caching and retries stay consistent. Pass a pooch ``processor``
-    (e.g. :class:`pooch.Unzip`, :class:`pooch.Untar`) to unpack archives.
+    Loaders should use :meth:`download` rather than re-implementing fetching, so hashing,
+    caching and retries stay consistent. Pass a pooch ``processor`` (e.g. :class:`pooch.Unzip`,
+    :class:`pooch.Untar`) to unpack archives.
     """
 
     def __init__(self, entry: DatasetEntry, target_dir: Path, base_url: str | None, retries: int) -> None:
@@ -83,14 +83,10 @@ class FetchContext:
             path=str(target),
             base_url="",
             registry={file.name: f"sha256:{file.sha256}" if file.sha256 else None},
-            urls={file.name: file.urls(self._base_url)[0]},
+            urls={file.name: file.resolve_url(self._base_url)},
             retry_if_failed=self._retries,
         )
         return pup.fetch(file.name, processor=processor, progressbar=True)
-
-    def download_all(self, dest: Path | None = None) -> list[Any]:
-        """Download every file in the dataset and return their local paths."""
-        return [self.download(f, dest) for f in self.entry.files]
 
 
 class Fetcher:

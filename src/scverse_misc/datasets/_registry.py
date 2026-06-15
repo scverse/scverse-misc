@@ -23,9 +23,9 @@ class FileEntry:
     name
         File name as it should appear on disk (e.g. ``"cells.zip"``).
     url
-        Full download URL (e.g. a Zenodo file URL). Tried first if set.
+        Full download URL (e.g. a Zenodo file URL). Takes precedence over ``s3_key``.
     s3_key
-        Key relative to the registry's ``base_url``. Tried after ``url``.
+        Key relative to the registry's ``base_url``. Used when ``url`` is unset.
     sha256
         Expected SHA-256 hash. If set, downloads are verified against it.
     """
@@ -35,16 +35,13 @@ class FileEntry:
     s3_key: str | None = None
     sha256: str | None = None
 
-    def urls(self, base_url: str | None = None) -> list[str]:
-        """Return candidate URLs to try, in order (``url`` first, then ``base_url/s3_key``)."""
-        out: list[str] = []
+    def resolve_url(self, base_url: str | None = None) -> str:
+        """Resolve the download URL: the explicit ``url`` if set, else ``base_url/s3_key``."""
         if self.url:
-            out.append(self.url)
+            return self.url
         if base_url and self.s3_key:
-            out.append(f"{base_url.rstrip('/')}/{self.s3_key}")
-        if not out:
-            raise ValueError(f"FileEntry {self.name!r} has neither `url` nor `s3_key` (with a registry `base_url`).")
-        return out
+            return f"{base_url.rstrip('/')}/{self.s3_key}"
+        raise ValueError(f"FileEntry {self.name!r} has neither `url` nor `s3_key` (with a registry `base_url`).")
 
 
 @dataclass(frozen=True, slots=True)
