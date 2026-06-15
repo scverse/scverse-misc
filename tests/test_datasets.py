@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 from scverse_misc.datasets import (
-    DatasetRegistry,
-    FetchContext,
-    Fetcher,
+    DatasetEntry,
     FileEntry,
     available_loaders,
-    get_loader,
+    fetch,
+    parse_registry,
     register_loader,
 )
 
@@ -22,9 +21,7 @@ base_url: https://example.org/data/
 datasets:
   toy:
     type: dummy
-    doc_header: A toy dataset.
-    metadata:
-      shape: [10, 3]
+    shape: [10, 3]
     files:
       - name: toy.h5ad
         s3_key: toy.h5ad
@@ -38,26 +35,20 @@ datasets:
 
 
 @pytest.fixture
-def registry(tmp_path: Path) -> DatasetRegistry:
+def registry(tmp_path: Path) -> dict[str, DatasetEntry]:
     p = tmp_path / "datasets.yaml"
     p.write_text(_YAML)
-    return DatasetRegistry.from_yaml(p)
+    base_url, datasets = parse_registry(p)
+    assert base_url == "https://example.org/data/"
+    return datasets
 
 
-def test_from_yaml(registry: DatasetRegistry) -> None:
-    assert registry.base_url == "https://example.org/data/"
+def test_parse_registry(registry: dict[str, DatasetEntry]) -> None:
     assert set(registry) == {"toy", "remote"}
     toy = registry["toy"]
     assert toy.type == "dummy"
-    assert toy.doc_header == "A toy dataset."
-    assert toy.metadata["shape"] == [10, 3]
+    assert toy.metadata["shape"] == [10, 3]  # non-type/files keys land in metadata
     assert toy.file(suffix=".h5ad").sha256 == "abc123"
-
-
-def test_unknown_dataset(registry: DatasetRegistry) -> None:
-    assert "nope" not in registry
-    with pytest.raises(KeyError, match="Unknown dataset"):
-        registry["nope"]
 
 
 def test_resolve_url() -> None:
@@ -70,7 +61,7 @@ def test_resolve_url() -> None:
         FileEntry(name="x", s3_key="k").resolve_url(None)
 
 
-def test_file_selection_is_unambiguous(registry: DatasetRegistry) -> None:
+def test_file_selection_is_unambiguous(registry: dict[str, DatasetEntry]) -> None:
     with pytest.raises(ValueError, match="exactly one"):
         registry["toy"].file(suffix=".missing")
     with pytest.raises(ValueError, match="exactly one of"):
@@ -81,27 +72,25 @@ def test_builtin_loaders_are_shipped() -> None:
     assert {"anndata", "spatialdata"} <= set(available_loaders())
 
 
-def test_register_and_dispatch(registry: DatasetRegistry, tmp_path: Path) -> None:
+def test_register_and_dispatch(registry: dict[str, DatasetEntry], tmp_path: Path) -> None:
     seen: dict[str, object] = {}
 
     @register_loader("dummy")
-    def _load(ctx: FetchContext, /, **kw: object) -> str:
+    def _load(entry: DatasetEntry, target: object, download: object, **kw: object) -> str:
         seen.update(kw)
-        return ctx.entry.name
+        return entry.name
 
     try:
-        # explicit cache_dir avoids importing pooch; dummy loader does no download
-        fetched = Fetcher(registry, cache_dir=tmp_path).fetch("toy", foo=1)
-        assert fetched == "toy"
+        # dummy loader does no download, so no network / pooch needed
+        assert fetch(registry["toy"], tmp_path, base_url="https://b", foo=1) == "toy"
         assert seen == {"foo": 1}
-        assert get_loader("dummy") is _load
     finally:
         from scverse_misc.datasets import _fetcher
 
         _fetcher._LOADERS.pop("dummy", None)
 
 
-def test_unknown_loader(registry: DatasetRegistry, tmp_path: Path) -> None:
+def test_unknown_loader(registry: dict[str, DatasetEntry], tmp_path: Path) -> None:
     # "toy" is type "dummy" but no dummy loader registered here
     with pytest.raises(KeyError, match="No loader registered"):
-        Fetcher(registry, cache_dir=tmp_path).fetch("toy")
+        fetch(registry["toy"], tmp_path)

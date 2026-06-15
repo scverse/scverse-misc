@@ -40,13 +40,11 @@ Reusable dataset registry + downloader (requires the `datasets` extra).
 .. autosummary::
     :toctree: generated
 
-    DatasetRegistry
     DatasetEntry
     FileEntry
-    Fetcher
-    FetchContext
+    parse_registry
+    fetch
     register_loader
-    get_loader
     available_loaders
 ```
 

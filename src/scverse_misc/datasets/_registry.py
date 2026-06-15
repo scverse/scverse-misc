@@ -1,17 +1,17 @@
-"""Declarative registry of downloadable datasets, loaded from YAML."""
+"""Typed dataset entries + a YAML parser. Plain data — no registry/fetcher machinery."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Mapping
     from os import PathLike
 
-__all__ = ["FileEntry", "DatasetEntry", "DatasetRegistry"]
+__all__ = ["FileEntry", "DatasetEntry", "parse_registry"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,86 +48,47 @@ class FileEntry:
 class DatasetEntry:
     """A named dataset made up of one or more files.
 
-    Parameters
-    ----------
-    name
-        Dataset name (the registry key).
-    type
-        Loader type, dispatched against the loader registry (e.g. ``"anndata"``, ``"spatialdata"``).
-    files
-        The files that make up the dataset.
-    doc_header
-        Optional one-line description.
-    metadata
-        Free-form extra metadata (shape, library_id, ...). Not interpreted by the core.
+    ``metadata`` holds everything in the YAML row other than ``type`` and ``files``
+    (e.g. ``shape``, ``library_id``, ``doc_header``); the core does not interpret it.
     """
 
     name: str
     type: str
     files: tuple[FileEntry, ...]
-    doc_header: str | None = None
-    metadata: Mapping[str, object] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def file(self, *, name: str | None = None, suffix: str | None = None) -> FileEntry:
-        """Return the file matching ``name`` (exact) or ``suffix`` (endswith). Raises if not exactly one matches."""
-        if (name is None) == (suffix is None):
-            raise ValueError("Pass exactly one of `name` or `suffix`.")
+        """Return the file matching ``name`` (exact) or ``suffix`` (endswith). Raises unless exactly one matches."""
         if name is not None:
             matches = [f for f in self.files if f.name == name]
             crit = f"name={name!r}"
-        else:
-            assert suffix is not None
+        elif suffix is not None:
             matches = [f for f in self.files if f.name.endswith(suffix)]
             crit = f"suffix={suffix!r}"
+        else:
+            raise ValueError("Pass exactly one of `name` or `suffix`.")
         if len(matches) != 1:
             raise ValueError(f"Expected exactly one file with {crit} in {self.name!r}, found {len(matches)}.")
         return matches[0]
 
 
-@dataclass(frozen=True, slots=True)
-class DatasetRegistry:
-    """A collection of :class:`DatasetEntry` with an optional shared ``base_url``."""
+def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, DatasetEntry]]:
+    """Parse a YAML registry into ``(base_url, {name: DatasetEntry})``.
 
-    base_url: str | None = None
-    datasets: Mapping[str, DatasetEntry] = field(default_factory=dict)
-
-    @classmethod
-    def from_yaml(cls, path: PathLike[str] | str) -> DatasetRegistry:
-        """Build a registry from a YAML file.
-
-        The YAML has a top-level ``base_url`` (or ``s3_base_url``) and a ``datasets`` mapping of
-        ``name -> {type, doc_header?, metadata?, files: [{name, url?/s3_key?, sha256?}]}``.
-        """
-        with open(path) as f:
-            config = yaml.safe_load(f) or {}
-        base_url = config.get("base_url") or config.get("s3_base_url")
-        datasets: dict[str, DatasetEntry] = {}
-        for name, data in (config.get("datasets") or {}).items():
-            files = tuple(
-                FileEntry(
-                    name=fd["name"],
-                    url=fd.get("url"),
-                    s3_key=fd.get("s3_key"),
-                    sha256=fd.get("sha256"),
-                )
-                for fd in data.get("files", [])
-            )
-            datasets[name] = DatasetEntry(
-                name=name,
-                type=data["type"],
-                files=files,
-                doc_header=data.get("doc_header"),
-                metadata=data.get("metadata", {}),
-            )
-        return cls(base_url=base_url, datasets=datasets)
-
-    def __getitem__(self, name: str) -> DatasetEntry:
-        if name not in self.datasets:
-            raise KeyError(f"Unknown dataset {name!r}. Available: {sorted(self.datasets)}")
-        return self.datasets[name]
-
-    def __contains__(self, name: object) -> bool:
-        return name in self.datasets
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self.datasets)
+    The YAML has a top-level ``base_url`` (or ``s3_base_url``) and a ``datasets`` mapping of
+    ``name -> {type, files: [{name, url?/s3_key?, sha256?}], ...}``. Any keys other than ``type``
+    and ``files`` are collected into the entry's ``metadata``.
+    """
+    with open(path) as f:
+        config = yaml.safe_load(f) or {}
+    base_url = config.get("base_url") or config.get("s3_base_url")
+    datasets = {
+        name: DatasetEntry(
+            name=name,
+            type=row["type"],
+            files=tuple(FileEntry(**fd) for fd in row.get("files", [])),
+            metadata={k: v for k, v in row.items() if k not in ("type", "files")},
+        )
+        for name, row in (config.get("datasets") or {}).items()
+    }
+    return base_url, datasets

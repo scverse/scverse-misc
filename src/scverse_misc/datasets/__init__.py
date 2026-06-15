@@ -1,34 +1,23 @@
-"""Reusable, declarative dataset registry + downloader for scverse packages.
+"""Reusable, declarative dataset download for scverse packages.
 
-Define datasets in a YAML registry, then download and load them through a
-:class:`Fetcher`. Dataset ``type`` strings are dispatched against a pluggable
-loader registry (:func:`register_loader`); ``anndata`` and ``spatialdata``
-loaders ship built in.
+Parse a YAML registry into typed :class:`DatasetEntry` objects, then download and load
+one with :func:`fetch`. Dataset ``type`` strings are dispatched against a pluggable loader
+registry (:func:`register_loader`); ``anndata`` and ``spatialdata`` loaders ship built in.
 
-Requires the ``datasets`` extra (``pip install scverse-misc[datasets]``); the
-built-in ``spatialdata`` loader additionally needs the ``spatialdata`` extra.
+Requires the ``datasets`` extra (``pip install scverse-misc[datasets]``); the built-in
+``spatialdata`` loader additionally needs the ``spatialdata`` extra.
 """
 
 from __future__ import annotations
 
-from ._fetcher import (
-    FetchContext,
-    Fetcher,
-    Loader,
-    available_loaders,
-    get_loader,
-    register_loader,
-)
-from ._registry import DatasetEntry, DatasetRegistry, FileEntry
+from ._fetcher import available_loaders, fetch, register_loader
+from ._registry import DatasetEntry, FileEntry, parse_registry
 
 __all__ = [
-    "DatasetRegistry",
-    "DatasetEntry",
     "FileEntry",
-    "Fetcher",
-    "FetchContext",
-    "Loader",
+    "DatasetEntry",
+    "parse_registry",
+    "fetch",
     "register_loader",
-    "get_loader",
     "available_loaders",
 ]
