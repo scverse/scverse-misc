@@ -42,7 +42,7 @@ def _process_docstring(
     match objtype:
         case "function" if hasattr(obj, "__scverse_misc_create_namespace__"):
             _process_namespace_decorator(
-                app, name, obj.__scverse_misc_create_namespace__, obj._canonical_instance_name, lines
+                app, name, obj.__scverse_misc_create_namespace__, obj.__scverse_misc_canonical_instance_name__, lines
             )
         case "method" | "function" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
             _process_settings_method(app, obj, lines)
@@ -79,12 +79,7 @@ def _process_deprecated_function(app: Sphinx, msg: Deprecation, lines: list[str]
         notice += f"\n{textwrap.indent(msg._docmsg or '', 3 * ' ')}"
     if model.extended_summary is not None:
         notice += f"\n\n{model.extended_summary}"
-    model = Docstring(
-        summary=model.summary,
-        extended_summary=notice,
-        deprecation=model.deprecation,
-        sections=model.sections,
-    )
+    model.extended_summary = notice
     _emit_docstring(app, model, lines)
 
 
@@ -115,14 +110,9 @@ def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str
         par.description = docmsg
         params = list(section.parameters)
         params[p] = par
-        sections = list(model.sections)
+        sections = model.sections
         sections[s] = Section(section.kind, parameters=params)
-        model = Docstring(
-            summary=model.summary,
-            extended_summary=model.extended_summary,
-            deprecation=model.deprecation,
-            sections=sections,
-        )
+        model.sections = sections
     match parsed.style:
         case Style.GOOGLE:
             doc = emit_google(model)

@@ -201,6 +201,6 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
         return _create_namespace(name, cls, reserved_namespaces, canonical_instance_name)
 
     decorator.__scverse_misc_create_namespace__ = cls  # type: ignore[attr-defined]
-    decorator._canonical_instance_name = canonical_instance_name  # type: ignore[attr-defined]
+    decorator.__scverse_misc_canonical_instance_name__ = canonical_instance_name  # type: ignore[attr-defined]
 
     return decorator
