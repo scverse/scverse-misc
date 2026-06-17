@@ -38,43 +38,43 @@ class Deprecation(str):
         return obj
 
 
-def _deprecated_at[F: Callable[..., object]](
-    msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1
-) -> Callable[[F], F]:
-    """Decorator to indicate that a class, function, or overload is deprecated.
-
-    Wraps :func:`warnings.deprecated`. If the scverse_misc Sphinx extension is enabled, the function's documentation will
-    include a deprecation notice.
-
-    Args:
-        msg: The deprecation message.
-        category: The category of the warning that will be emitted at runtime.
-        stacklevel: The stack level of the warning.
-
-    Examples:
-        >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
-        ... def foo(baz):
-        ...     pass
-    """
-
-    def decorate(func: F) -> F:
-        kind = "function" if func.__name__ == func.__qualname__ else "method"
-        warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
-        if len(msg):
-            warnmsg += f". {msg}" if msg.count("\n") == 0 else f":\n{indent(msg, 4 * ' ')}"
-        else:
-            warnmsg += "."
-        newmsg = Deprecation(msg.version_deprecated, warnmsg)
-        newmsg._docmsg = str(msg)
-        return _deprecated(newmsg, category=category, stacklevel=stacklevel)(func)
-
-    return decorate
-
-
 if TYPE_CHECKING:
     deprecated = _deprecated
 else:
-    deprecated = _deprecated_at
+
+    class deprecated(_deprecated):
+        """Decorator to indicate that a class, function, or overload is deprecated.
+
+        Wraps :func:`warnings.deprecated`. If the scverse_misc Sphinx extension is enabled, the function's documentation will
+        include a deprecation notice.
+
+        Args:
+            msg: The deprecation message.
+            category: The category of the warning that will be emitted at runtime.
+            stacklevel: The stack level of the warning.
+
+        Examples:
+            >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
+            ... def foo(baz):
+            ...     pass
+        """
+
+        def __init__(self, msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1):
+            super().__init__(msg, category=category, stacklevel=stacklevel)
+
+        def __call__[F: Callable[..., object]](self, func: F) -> F:
+            kind = "function" if func.__name__ == func.__qualname__ else "method"
+            warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
+            if len(self.message):
+                warnmsg += (
+                    f". {self.message}" if self.message.count("\n") == 0 else f":\n{indent(self.message, 4 * ' ')}"
+                )
+            else:
+                warnmsg += "."
+            newmsg = Deprecation(self.message.version_deprecated, warnmsg)
+            newmsg._docmsg = str(self.message)
+            self.message = newmsg
+            return super().__call__(func)
 
 
 class CallableWithDeprecatedArg[**P, R](Protocol):
