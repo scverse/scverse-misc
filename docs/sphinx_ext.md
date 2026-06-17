@@ -60,4 +60,5 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 .. autodata:: package.settings
 
 .. autofunction:: package.settings.override
+.. autofunction:: package.settings.reset
 ```
