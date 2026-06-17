@@ -3,6 +3,7 @@ from __future__ import annotations
 import textwrap
 import warnings
 from collections.abc import Callable
+from importlib.metadata import version
 from types import FunctionType, GenericAlias, MethodType
 from typing import TYPE_CHECKING, Any, cast
 
@@ -10,7 +11,6 @@ from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Styl
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._utils import get_packagename, type_str
-from importlib.metadata import version
 
 try:
     from pydantic_core import PydanticUndefined
