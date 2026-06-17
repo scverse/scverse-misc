@@ -42,7 +42,7 @@ def register_loader[T](type_name: str) -> Callable[[Loader[T]], Loader[T]]: ...
 @overload
 def register_loader[T](type_name: str, loader: Loader[T]) -> Loader[T]: ...
 def register_loader[T](type_name: str, loader: Loader[T] | None = None) -> Callable[[Loader[T]], Loader[T]] | Loader[T]:
-    """Register a loader for a dataset ``type`` (decorator or direct call)."""
+    """Register a :class:`Loader` for a dataset ``type`` (decorator or direct call)."""
 
     def deco(fn: Loader[T]) -> Loader[T]:
         _LOADERS[type_name] = fn

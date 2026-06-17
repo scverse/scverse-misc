@@ -6,7 +6,6 @@ import pytest
 
 from scverse_misc.datasets import (
     DatasetEntry,
-    Download,
     FileEntry,
     available_loaders,
     fetch,
@@ -16,6 +15,9 @@ from scverse_misc.datasets import (
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from scverse_misc.datasets import DownloadCB
+
 
 _YAML = """\
 base_url: https://example.org/data/
@@ -77,7 +79,7 @@ def test_register_and_dispatch(registry: dict[str, DatasetEntry], tmp_path: Path
     seen: dict[str, object] = {}
 
     @register_loader("dummy")
-    def _load(entry: DatasetEntry, target: Path, download: Download, /, **kw: object) -> str:
+    def _load(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kw: object) -> str:
         seen.update(kw)
         return entry.name
 
