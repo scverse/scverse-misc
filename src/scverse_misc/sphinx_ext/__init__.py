@@ -10,7 +10,7 @@ from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Styl
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._utils import get_packagename, type_str
-from .._version import __version__  # type: ignore[import-not-found,unused-ignore]
+from importlib.metadata import version
 
 try:
     from pydantic_core import PydanticUndefined
@@ -33,7 +33,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
     app.connect("autodoc-process-docstring", _process_docstring)
 
-    return {"version": __version__, "parallel_read_safe": True}
+    return {"version": version("scverse-misc"), "parallel_read_safe": True}
 
 
 def _process_docstring(

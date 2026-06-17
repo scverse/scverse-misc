@@ -86,7 +86,8 @@ class CallableWithDeprecatedArg[**P, R](Protocol):
 class deprecated_arg:
     """Decorator to indicate that a function argument is deprecated.
 
-    Emits a warning when the decorated function is called with the deprecated argument. If the scverse_misc Sphinx extension is enabled,
+    Emits a warning when the decorated function is called with the deprecated argument.
+    If the `scverse_misc` Sphinx extension is enabled,
     the documentation will be modified to include a deprecation notice.
 
     Args:
