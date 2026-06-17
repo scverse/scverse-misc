@@ -19,14 +19,18 @@ if TYPE_CHECKING:
     from ._registry import DatasetEntry, FileEntry
 
 
-__all__ = ["register_loader", "available_loaders", "fetch", "Loader", "Download"]
+__all__ = ["register_loader", "available_loaders", "fetch", "Loader", "DownloadCB"]
 
 
 class Loader[T](Protocol):
-    def __call__(self, entry: DatasetEntry, target: Path, download: Download, /, **kwargs: object) -> T: ...
+    """Function that can be annotated by :func:`register_loader`."""
+
+    def __call__(self, entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> T: ...
 
 
-class Download(Protocol):
+class DownloadCB(Protocol):
+    """Callback passed as `download` to a :class:`Loader`."""
+
     def __call__(self, file: FileEntry, /, *, dest: Path | None = None, processor: Processor | None = None) -> str: ...
 
 
@@ -81,7 +85,7 @@ def fetch[T](
 
 
 @register_loader("anndata")
-def _load_anndata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: object) -> AnnData:
+def _load_anndata(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> AnnData:
     """Built-in loader: download a single ``.h5ad`` and read it with :func:`anndata.read_h5ad`."""
     import anndata
 
@@ -89,7 +93,7 @@ def _load_anndata(entry: DatasetEntry, target: Path, download: Download, /, **kw
 
 
 @register_loader("spatialdata")
-def _load_spatialdata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: object) -> SpatialData:
+def _load_spatialdata(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> SpatialData:
     """Built-in loader: download a ``.zip``, unzip it (via pooch) to ``<name>.zarr`` and read it.
 
     Needs the ``spatialdata`` extra.

@@ -46,6 +46,8 @@ Reusable dataset registry + downloader (requires the `datasets` extra).
     fetch
     register_loader
     available_loaders
+    Loader
+    DownloadCB
 ```
 
 ## Settings
