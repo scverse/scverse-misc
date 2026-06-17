@@ -23,7 +23,7 @@ __all__ = ["register_loader", "available_loaders", "fetch", "Loader", "Download"
 
 
 class Loader[T](Protocol):
-    def __call__(self, entry: DatasetEntry, target: Path, download: Download, /, **kwargs: Any) -> T: ...
+    def __call__(self, entry: DatasetEntry, target: Path, download: Download, /, **kwargs: object) -> T: ...
 
 
 class Download(Protocol):
@@ -53,7 +53,7 @@ def available_loaders() -> list[str]:
 
 
 def fetch[T](
-    entry: DatasetEntry, cache_dir: str | Path, *, base_url: str | None = None, retries: int = 3, **kwargs: Any
+    entry: DatasetEntry, cache_dir: str | Path, *, base_url: str | None = None, retries: int = 3, **kwargs: object
 ) -> T:  # type: ignore[type-var]
     """Download (if needed) and load ``entry``, dispatching to the loader registered for ``entry.type``.
 
@@ -81,15 +81,15 @@ def fetch[T](
 
 
 @register_loader("anndata")
-def _load_anndata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: Any) -> AnnData:
+def _load_anndata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: object) -> AnnData:
     """Built-in loader: download a single ``.h5ad`` and read it with :func:`anndata.read_h5ad`."""
     import anndata
 
-    return anndata.read_h5ad(download(entry.file(suffix=".h5ad")), **kwargs)
+    return anndata.read_h5ad(download(entry.file(suffix=".h5ad")), **cast("dict[str, Any]", kwargs))
 
 
 @register_loader("spatialdata")
-def _load_spatialdata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: Any) -> SpatialData:
+def _load_spatialdata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: object) -> SpatialData:
     """Built-in loader: download a ``.zip``, unzip it (via pooch) to ``<name>.zarr`` and read it.
 
     Needs the ``spatialdata`` extra.
@@ -101,4 +101,4 @@ def _load_spatialdata(entry: DatasetEntry, target: Path, download: Download, /, 
     zarr_path = target / f"{entry.name}.zarr"
     if not zarr_path.exists():
         raise RuntimeError(f"Expected extracted data at {zarr_path}, but it was not found.")
-    return sd.read_zarr(zarr_path, **kwargs)
+    return sd.read_zarr(zarr_path, **cast("dict[str, Any]", kwargs))
