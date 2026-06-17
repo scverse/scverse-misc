@@ -50,14 +50,14 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 ### source
 
 ```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/settings.py
+.. literalinclude:: sphinx_ext_examples/package.py
    :language: python
 ```
 
 ### rendered
 
 ```{eval-rst}
-.. autodata:: settings.settings
+.. autodata:: package.settings
 
-.. autofunction:: settings.settings.override
+.. autofunction:: package.settings.override
 ```
