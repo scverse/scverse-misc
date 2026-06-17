@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import inspect
 import warnings
 from collections.abc import Callable
-from typing import Literal, cast, get_args
+from typing import TYPE_CHECKING, Literal, cast, get_args
 
 import pytest
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
-from scverse_misc import Deprecation, deprecated, deprecated_arg
+from scverse_misc import Deprecation, deprecated, deprecated_arg, sphinx_ext
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 
 @pytest.fixture(
@@ -86,12 +91,14 @@ def deprecated_func(msg: str | None, func: Callable[..., int]) -> Callable[..., 
     return deprecated(Deprecation("foo", msg or ""))(func)
 
 
-def test_deprecation_decorator(deprecated_func: Callable[..., int], docstring: str | None, msg: str | None) -> None:
+def test_deprecation_decorator(
+    app: Sphinx, deprecated_func: Callable[..., int], docstring: str | None, msg: str | None
+) -> None:
     with pytest.warns(FutureWarning, match="deprecated"):
         assert deprecated_func(1, 2) == 42
 
-    assert deprecated_func.__doc__ is not None
-    lines = deprecated_func.__doc__.expandtabs().splitlines()
+    lines = (inspect.getdoc(deprecated_func) or "").splitlines()
+    sphinx_ext._process_deprecated_function(app, deprecated_func.__deprecated__, lines)  # type: ignore[attr-defined]
     offset = 0 if docstring is None else 2
 
     if docstring is not None:
@@ -133,7 +140,9 @@ def test_deprecated_arg_decorator(
     if parser is None:
         return
 
-    lines = parser(inspect.getdoc(deprecated_func) or "").lines()
+    lines = (inspect.getdoc(deprecated_func) or "").splitlines()
+    sphinx_ext._process_deprecated_args(deprecated_func.__scverse_misc_deprecated_arg__, lines)
+    lines = parser(lines).lines()
 
     for i, line in enumerate(lines):
         if line.startswith(prefix := f":param {arg}: "):

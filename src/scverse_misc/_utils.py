@@ -1,17 +1,22 @@
+from __future__ import annotations
+
 import functools
 import inspect
 import sys
 from collections.abc import Callable, Mapping
 from functools import WRAPPER_ASSIGNMENTS
-from types import FunctionType
-from typing import ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
+from types import FunctionType, GenericAlias
+from typing import TYPE_CHECKING, ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
+
+if TYPE_CHECKING:
+    from pydantic.fields import FieldInfo
 
 
 class _BaseOverrides(TypedDict, total=False):
     __module__: str
     __name__: str
     __qualname__: str
-    __doc__: str
+    __doc__: str | None
     __signature__: inspect.Signature
     __annotations__: Mapping[str, object]
     __type_params__: tuple[TypeVar | TypeVarTuple | ParamSpec, ...]
@@ -39,3 +44,19 @@ def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
     wrapper = functools.update_wrapper(new, func, assigned=copy)
     del wrapper.__wrapped__  # otherwise sphinx will try to document that.
     return cast("F", wrapper)
+
+
+def get_packagename(cls: type | str) -> str:
+    package_name = cls.__module__ if not isinstance(cls, str) else cls
+    dotidx = package_name.find(".")
+    if dotidx > -1:
+        package_name = package_name[:dotidx]
+    return package_name
+
+
+def type_str(cls: type, field: FieldInfo) -> str:
+    if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
+        return str(field.annotation)
+    if field.annotation.__module__ in {"builtins", cls.__module__}:
+        return field.annotation.__qualname__
+    return f"{field.annotation.__module__}.{field.annotation.__qualname__}"

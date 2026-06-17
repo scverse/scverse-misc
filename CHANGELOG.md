@@ -8,10 +8,11 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
+## [0.0.9] (unreleased)
 
 ### Added
 
+- A Sphinx extension to take care of documentation. This moves docstring processing from import time to documentation building time.
 - A reusable `datasets` subpackage (behind the `datasets` extra): typed `DatasetEntry`/
   `FileEntry` + `parse_registry` (YAML), a thin pooch-based `fetch` (SHA-256 verification,
   retries, archive processors), and a pluggable `type -> loader` registry
@@ -19,6 +20,11 @@ and this project adheres to [Semantic Versioning][].
   `anndata` and `spatialdata` loaders (the latter behind the `spatialdata` extra); other
   types are consumer-registered.
 - `anndata` is now a core dependency.
+
+### Changed
+
+- Docstrings are no longer generated or modified at import time.
+
 
 ## [0.0.8]
 
@@ -79,6 +85,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.0.9]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.9
 [0.0.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.8
 [0.0.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.7
 [0.0.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.6
