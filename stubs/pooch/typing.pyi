@@ -2,7 +2,7 @@ import os
 from collections.abc import Callable
 from typing import Literal, Protocol
 
-from .core import Pooch
+from . import Pooch
 
 type Action = Literal["download", "fetch", "update"]
 type PathType = str | os.PathLike[str]

@@ -58,6 +58,8 @@ Reusable dataset registry + downloader (requires the `datasets` extra).
 
    api/settings
 
+.. currentmodule:: scverse_misc
+
 +---------------------------+----------------------------------+
 | :class:`Settings` ()      | Base class for package settings. |
 +---------------------------+----------------------------------+

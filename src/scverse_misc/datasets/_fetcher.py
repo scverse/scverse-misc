@@ -12,11 +12,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
-    from anndata import AnnData
-    from pooch.typing import Processor
-    from spatialdata import SpatialData
-
     from ._registry import DatasetEntry, FileEntry
+
+    if TYPE_CHECKING:  # sphinx tries to import the above TYPE_CHECKING block
+        from anndata import AnnData
+        from pooch.typing import Processor
+        from spatialdata import SpatialData
+    else:
+        from typing import TypeAliasType
+
+        # TypeAliasType.__module__ is readonly, so we have to be a bit creative.
+        Processor = eval('A("Processor", object)', globals=dict(__name__="pooch.typing", A=TypeAliasType))
 
 
 __all__ = ["register_loader", "available_loaders", "fetch", "Loader", "DownloadCB"]
@@ -25,13 +31,28 @@ __all__ = ["register_loader", "available_loaders", "fetch", "Loader", "DownloadC
 class Loader[T](Protocol):
     """Function that can be annotated by :func:`register_loader`."""
 
-    def __call__(self, entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> T: ...
+    def __call__(self, entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> T:
+        """Call `download` (see :class:`DownloadCB`) and load ``entry``.
+
+        Args:
+            entry: File to download.
+            target: Loaded when it exists, otherwise it will be created.
+            download: Called when `target` doesn’t exist.
+            kwargs: Passed to `download`.
+        """
 
 
 class DownloadCB(Protocol):
     """Callback passed as `download` to a :class:`Loader`."""
 
-    def __call__(self, file: FileEntry, /, *, dest: Path | None = None, processor: Processor | None = None) -> str: ...
+    def __call__(self, file: FileEntry, /, *, dest: Path | None = None, processor: Processor | None = None) -> str:
+        """Download ``file`` if necessary.
+
+        Args:
+            file: File to download.
+            dest: Optional target directory, defaults to :func:`fetch`’s `cache_dir / entry.type`.
+            processor: Optional archive processor.
+        """
 
 
 _LOADERS: dict[str, Loader[object]] = {}
