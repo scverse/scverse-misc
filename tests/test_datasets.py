@@ -6,6 +6,7 @@ import pytest
 
 from scverse_misc.datasets import (
     DatasetEntry,
+    Download,
     FileEntry,
     available_loaders,
     fetch,
@@ -76,7 +77,7 @@ def test_register_and_dispatch(registry: dict[str, DatasetEntry], tmp_path: Path
     seen: dict[str, object] = {}
 
     @register_loader("dummy")
-    def _load(entry: DatasetEntry, target: object, download: object, **kw: object) -> str:
+    def _load(entry: DatasetEntry, target: Path, download: Download, /, **kw: object) -> str:
         seen.update(kw)
         return entry.name
 

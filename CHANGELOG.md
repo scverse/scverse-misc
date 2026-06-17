@@ -25,7 +25,6 @@ and this project adheres to [Semantic Versioning][].
 
 - Docstrings are no longer generated or modified at import time.
 
-
 ## [0.0.8]
 
 ### Fixed

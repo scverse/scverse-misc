@@ -10,7 +10,7 @@ Requires the ``datasets`` extra (``pip install scverse-misc[datasets]``); the bu
 
 from __future__ import annotations
 
-from ._fetcher import available_loaders, fetch, register_loader
+from ._fetcher import Download, Loader, available_loaders, fetch, register_loader
 from ._registry import DatasetEntry, FileEntry, parse_registry
 
 __all__ = [
@@ -20,4 +20,6 @@ __all__ = [
     "fetch",
     "register_loader",
     "available_loaders",
+    "Loader",
+    "Download",
 ]

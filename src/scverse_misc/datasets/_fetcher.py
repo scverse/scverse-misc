@@ -9,25 +9,38 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
+    from anndata import AnnData
+    from pooch.typing import Processor
+    from spatialdata import SpatialData
+
     from ._registry import DatasetEntry, FileEntry
 
-__all__ = ["register_loader", "available_loaders", "fetch"]
 
-Loader = Callable[..., Any]
-_LOADERS: dict[str, Loader] = {}
+__all__ = ["register_loader", "available_loaders", "fetch", "Loader", "Download"]
+
+
+class Loader[T](Protocol):
+    def __call__(self, entry: DatasetEntry, target: Path, download: Download, /, **kwargs: Any) -> T: ...
+
+
+class Download(Protocol):
+    def __call__(self, file: FileEntry, /, *, dest: Path | None = None, processor: Processor | None = None) -> str: ...
+
+
+_LOADERS: dict[str, Loader[object]] = {}
 
 
 @overload
-def register_loader(type_name: str) -> Callable[[Loader], Loader]: ...
+def register_loader[T](type_name: str) -> Callable[[Loader[T]], Loader[T]]: ...
 @overload
-def register_loader(type_name: str, loader: Loader) -> Loader: ...
-def register_loader(type_name: str, loader: Loader | None = None) -> Callable[[Loader], Loader] | Loader:
+def register_loader[T](type_name: str, loader: Loader[T]) -> Loader[T]: ...
+def register_loader[T](type_name: str, loader: Loader[T] | None = None) -> Callable[[Loader[T]], Loader[T]] | Loader[T]:
     """Register a loader for a dataset ``type`` (decorator or direct call)."""
 
-    def deco(fn: Loader) -> Loader:
+    def deco(fn: Loader[T]) -> Loader[T]:
         _LOADERS[type_name] = fn
         return fn
 
@@ -39,16 +52,16 @@ def available_loaders() -> list[str]:
     return sorted(_LOADERS)
 
 
-def fetch(
+def fetch[T](
     entry: DatasetEntry, cache_dir: str | Path, *, base_url: str | None = None, retries: int = 3, **kwargs: Any
-) -> Any:
+) -> T:  # type: ignore[type-var]
     """Download (if needed) and load ``entry``, dispatching to the loader registered for ``entry.type``.
 
     Files are cached under ``cache_dir / entry.type``. ``kwargs`` are passed to the loader.
     """
     target = Path(cache_dir) / entry.type
 
-    def download(file: FileEntry, dest: Path | None = None, processor: Any = None) -> Any:
+    def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:
         import pooch
 
         out = dest or target
@@ -64,11 +77,11 @@ def fetch(
 
     if entry.type not in _LOADERS:
         raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")
-    return _LOADERS[entry.type](entry, target, download, **kwargs)
+    return cast("Loader[T]", _LOADERS[entry.type])(entry, target, download, **kwargs)
 
 
 @register_loader("anndata")
-def _load_anndata(entry: DatasetEntry, target: Path, download: Loader, **kwargs: Any) -> Any:
+def _load_anndata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: Any) -> AnnData:
     """Built-in loader: download a single ``.h5ad`` and read it with :func:`anndata.read_h5ad`."""
     import anndata
 
@@ -76,7 +89,7 @@ def _load_anndata(entry: DatasetEntry, target: Path, download: Loader, **kwargs:
 
 
 @register_loader("spatialdata")
-def _load_spatialdata(entry: DatasetEntry, target: Path, download: Loader, **kwargs: Any) -> Any:
+def _load_spatialdata(entry: DatasetEntry, target: Path, download: Download, /, **kwargs: Any) -> SpatialData:
     """Built-in loader: download a ``.zip``, unzip it (via pooch) to ``<name>.zarr`` and read it.
 
     Needs the ``spatialdata`` extra.
