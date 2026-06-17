@@ -92,6 +92,7 @@ src = [ "src" ]
 extend-include = [ "*.ipynb" ]
 format.docstring-code-format = true
 lint.select = [
+  "ANN",    # flake8-annotations
   "B",      # flake8-bugbear
   "BLE",    # flake8-blind-except
   "C4",     # flake8-comprehensions

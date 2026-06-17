@@ -35,21 +35,29 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
 
 
 def _process_docstring(
-    app: Sphinx, objtype: _AutodocObjType, name: str, obj: Any, options: AutodocOptions, lines: list[str]
+    app: Sphinx, objtype: _AutodocObjType, name: str, obj: object, options: AutodocOptions, lines: list[str]
 ) -> None:
     match objtype:
-        case "function" if hasattr(obj, "__scverse_misc_create_namespace__"):
+        case "function" if hasattr(obj, "__scverse_misc_create_namespace__") and hasattr(
+            obj, "__scverse_misc_namespace_name__"
+        ):
+            assert isinstance(obj.__scverse_misc_create_namespace__, type)
+            assert isinstance(obj.__scverse_misc_namespace_name__, str)
             _process_namespace_decorator(
-                app, name, obj.__scverse_misc_create_namespace__, obj.__scverse_misc_canonical_instance_name__, lines
+                app, name, obj.__scverse_misc_create_namespace__, obj.__scverse_misc_namespace_name__, lines
             )
         case "method" | "function" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
             _process_settings_method(app, obj, lines)
         case "function" | "method" | "class":
             if hasattr(obj, "__deprecated__") and isinstance(obj.__deprecated__, Deprecation):
                 _process_deprecated_function(app, obj.__deprecated__, lines)
-            if hasattr(obj, "__scverse_misc_deprecated_arg__"):
-                _process_deprecated_args(obj.__scverse_misc_deprecated_arg__, lines)
-        case "property" if hasattr(obj.fget, "__deprecated__") and isinstance(obj.fget.__deprecated__, Deprecation):
+            if (args := getattr(obj, "__scverse_misc_deprecated_arg__", None)) is not None:
+                _process_deprecated_args(args, lines)
+        case "property" if (
+            hasattr(obj, "fget")
+            and hasattr(obj.fget, "__deprecated__")
+            and isinstance(obj.fget.__deprecated__, Deprecation)
+        ):
             _process_deprecated_function(app, obj.fget.__deprecated__, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
