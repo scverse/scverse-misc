@@ -46,7 +46,7 @@ def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
     return cast("F", wrapper)
 
 
-def get_packagename(cls: type | object | str) -> str:
+def get_packagename(cls: type | str) -> str:
     package_name = cls.__module__ if not isinstance(cls, str) else cls
     dotidx = package_name.find(".")
     if dotidx > -1:
@@ -54,7 +54,7 @@ def get_packagename(cls: type | object | str) -> str:
     return package_name
 
 
-def type_str(cls: object, field: FieldInfo) -> str:
+def type_str(cls: type, field: FieldInfo) -> str:
     if isinstance(field.annotation, GenericAlias) or not isinstance(field.annotation, type):
         return str(field.annotation)
     if field.annotation.__module__ in {"builtins", cls.__module__}:

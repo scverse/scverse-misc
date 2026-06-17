@@ -56,6 +56,7 @@ def _process_docstring(
 
 
 def _emit_docstring(app: Sphinx, model: Docstring, lines: list[str]) -> None:
+    """Emit a docstring compatible with the user settings (i.e. renderable with the chosen napoleon settings)."""
     if getattr(app.config, "napoleon_google_docstring", True):
         doc = emit_google(model)
     elif getattr(app.config, "napoleon_numpy_docstring", True):
@@ -154,7 +155,7 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
     objname = _get_objname(name)
     for fname, field in settings.__class__.model_fields.items():
         doc.append(f".. attribute:: {objname}.{fname}")
-        doc.append(f"   :type: {type_str(settings, field)}")
+        doc.append(f"   :type: {type_str(type(settings), field)}")
 
         if field.default is not PydanticUndefined:
             doc.append(f"   :value: {field.default!r}")
@@ -165,15 +166,22 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
     lines[:] = doc
 
 
-def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]) -> None:
-    if settings.__name__ != "override":
-        return
+def _process_settings_method(app: Sphinx, method: MethodType, lines: list[str]) -> None:
+    match method.__name__:
+        case "override":
+            _process_settings_method_override(app, method, lines)
+        case "reset":
+            _process_settings_method_reset(app, method, lines)
+        case _:
+            raise AssertionError
 
-    settingsobj = cast("Settings", settings.__self__)
+
+def _process_settings_method_override(app: Sphinx, method: MethodType, lines: list[str]) -> None:
+    settings = cast("Settings", method.__self__)
 
     params = []
-    for fname, field in settingsobj.__class__.model_fields.items():
-        param = Parameter(names=[fname], type_annotation=type_str(settingsobj, field), description=field.description)
+    for fname, field in type(settings).model_fields.items():
+        param = Parameter([fname], type_annotation=type_str(type(settings), field), description=field.description)
         if field.default is not PydanticUndefined:
             param.default_value = repr(field.default)
         params.append(param)
@@ -182,6 +190,15 @@ def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]
         summary="Provides local override via keyword arguments as a context manager.",
         sections=[Section(SectionKind.PARAMETERS, parameters=params)],
     )
+    _emit_docstring(app, model, lines)
+
+
+def _process_settings_method_reset(app: Sphinx, method: MethodType, lines: list[str]) -> None:
+    settings = cast("Settings", method.__self__)
+    names_param = Parameter(
+        ["names"], type_annotation=f"typing.Literal[{', '.join(settings.model_fields.keys())}]", is_optional=True
+    )
+    model = Docstring(summary=method.__doc__, sections=[Section(SectionKind.PARAMETERS, parameters=[names_param])])
     _emit_docstring(app, model, lines)
 
 
