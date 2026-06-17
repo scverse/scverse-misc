@@ -5,7 +5,7 @@ import sys
 from collections.abc import Callable
 from contextlib import chdir, nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args
+from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args, get_origin
 
 import pytest
 from pydantic import Field, ValidationError
@@ -134,7 +134,9 @@ def test_reset(settings: DummySettings, temp: bool) -> None:
 
 def test_reset_signature(settings: DummySettings) -> None:
     sig = inspect.signature(settings.reset)
-    assert get_args(sig.parameters["args"].annotation) == ("field_bool", "field_no_docstring", "field_int_range")
+    names_param = sig.parameters["names"]
+    assert get_origin(names_param.annotation) is Literal
+    assert get_args(names_param.annotation) == ("field_bool", "field_no_docstring", "field_int_range")
 
 
 @pytest.mark.skipif(sys.version_info < (3, 14), reason="requires annotationlib")
@@ -144,7 +146,7 @@ def test_reset_annotations(settings: DummySettings) -> None:
     import annotationlib
 
     assert annotationlib.get_annotations(settings.reset) == {
-        "args": Literal["field_bool", "field_no_docstring", "field_int_range"],
+        "names": Literal["field_bool", "field_no_docstring", "field_int_range"],
         "return": AbstractContextManager[frozenset[Literal["field_bool", "field_no_docstring", "field_int_range"]]],
     }
 

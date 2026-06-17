@@ -115,7 +115,7 @@ class Settings(BaseSettings):
         docstring_style: Literal["google", "numpy", "scverse"] | None = None,
     ) -> None:
         subcls.override = _copy_override(  # type: ignore[method-assign,type-var]
-            subcls, subcls.override, return_annotation=AbstractContextManager[None]
+            subcls, subcls.override
         )
         subcls.reset = _copy_reset(subcls, subcls.reset)  # type: ignore[method-assign,type-var]
 
@@ -165,7 +165,7 @@ class CustomRepr(str):
         return self
 
 
-def _copy_override[F: FunctionType](cls: type[Settings], func: F, return_annotation: object) -> F:
+def _copy_override[F: FunctionType](cls: type[Settings], func: F) -> F:
     from ._utils import Overrides
 
     parameters = [
@@ -177,6 +177,7 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, return_annotat
             for n, f in cls.model_fields.items()
         ],
     ]
+    return_annotation = AbstractContextManager[None]
     overrides = Overrides(
         __doc__=func.__doc__,
         __module__=cls.__module__,
@@ -201,17 +202,18 @@ def _copy_override[F: FunctionType](cls: type[Settings], func: F, return_annotat
 def _copy_reset[F: FunctionType](cls: type[Settings], func: F) -> F:
     from ._utils import Overrides
 
-    args_t = Literal[tuple(cls.model_fields.keys())]  # type: ignore[valid-type]
-    parameters = [
-        inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
-        inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL, annotation=args_t),
-    ]
-    return_annotation = AbstractContextManager[frozenset[args_t]]  # type: ignore[valid-type]
+    names_t = Literal[tuple(cls.model_fields.keys())]  # type: ignore[valid-type]
+    return_annotation = AbstractContextManager[frozenset[names_t]]  # type: ignore[valid-type]
+    signature = inspect.signature(func)
+    signature = signature.replace(
+        parameters=[p.replace(annotation=names_t) if p.name == "names" else p for p in signature.parameters.values()],
+        return_annotation=return_annotation,
+    )
     overrides = Overrides(
         __module__=cls.__module__,
         __qualname__=f"{cls.__qualname__}.{func.__name__}",
-        __signature__=inspect.Signature(parameters, return_annotation=return_annotation),
-        __annotations__={"args": args_t, "return": return_annotation},
+        __signature__=signature,
+        __annotations__={"names": names_t, "return": return_annotation},
     )
     if sys.version_info >= (3, 14):
         from annotationlib import Format

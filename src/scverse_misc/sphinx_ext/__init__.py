@@ -17,9 +17,7 @@ try:
 
     from .._settings import Settings
 except ImportError:
-
-    class Settings:  # type: ignore[no-redef] # noqa: D101
-        pass
+    pass
 
 
 if TYPE_CHECKING:
@@ -171,7 +169,7 @@ def _process_settings_method(app: Sphinx, settings: MethodType, lines: list[str]
     if settings.__name__ != "override":
         return
 
-    settingsobj = cast(Settings, settings.__self__)
+    settingsobj = cast("Settings", settings.__self__)
 
     params = []
     for fname, field in settingsobj.__class__.model_fields.items():
