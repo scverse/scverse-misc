@@ -5,35 +5,31 @@ import sys
 from collections.abc import Callable
 from contextlib import chdir, nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args
+from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args, get_origin
 
 import pytest
 from pydantic import Field, ValidationError
 from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
-from sphinx.application import Sphinx
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
-from scverse_misc import Settings
+from scverse_misc import Settings, sphinx_ext
 
 if TYPE_CHECKING:
     # Static version of the class returned by the `settings_class` fixture
-    class DummySettings(Settings, exported_object_name="settings"):
+    class DummySettings(Settings):
         field_bool: bool = False
         field_no_docstring: int = 42
         field_int_range: int = 1
 
 
-pytest_plugins = ["sphinx.testing.fixtures"]
-
-
 @pytest.fixture
-def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy", "scverse"]:
+def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
     return getattr(request, "param", "google")
 
 
 @pytest.fixture
-def settings_class_factory(docstring_style: Literal["google", "numpy", "scverse"]) -> Callable[[], type[DummySettings]]:
+def settings_class_factory(docstring_style: Literal["google", "numpy"]) -> Callable[[], type[DummySettings]]:
     def settings_class() -> type[DummySettings]:
         class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
             field_bool: bool = False
@@ -67,7 +63,7 @@ def test_defaults_override() -> None:
         pytest.warns(RuntimeWarning, match="dotenv_filtering scheme"),
     ):
 
-        class WarnSettings(Settings, exported_object_name="settings", docstring_style="google"):
+        class WarnSettings(Settings):
             model_config = SettingsConfigDict(
                 validate_assignment=False,
                 use_attribute_docstrings=False,
@@ -138,7 +134,9 @@ def test_reset(settings: DummySettings, temp: bool) -> None:
 
 def test_reset_signature(settings: DummySettings) -> None:
     sig = inspect.signature(settings.reset)
-    assert get_args(sig.parameters["args"].annotation) == ("field_bool", "field_no_docstring", "field_int_range")
+    names_param = sig.parameters["names"]
+    assert get_origin(names_param.annotation) is Literal
+    assert get_args(names_param.annotation) == ("field_bool", "field_no_docstring", "field_int_range")
 
 
 @pytest.mark.skipif(sys.version_info < (3, 14), reason="requires annotationlib")
@@ -148,15 +146,18 @@ def test_reset_annotations(settings: DummySettings) -> None:
     import annotationlib
 
     assert annotationlib.get_annotations(settings.reset) == {
-        "args": Literal["field_bool", "field_no_docstring", "field_int_range"],
+        "names": Literal["field_bool", "field_no_docstring", "field_int_range"],
         "return": AbstractContextManager[frozenset[Literal["field_bool", "field_no_docstring", "field_int_range"]]],
     }
 
 
-@pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
+@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
 def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
-    lines = parser(inspect.getdoc(settings) or "").lines()
+
+    lines = (inspect.getdoc(settings) or "").splitlines()
+    sphinx_ext._process_settings_object(settings, "tests.settings", lines)
+    lines = parser(lines).lines()
 
     assert lines[0].endswith("`tests` package.")
 
@@ -177,7 +178,7 @@ def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettin
                 assert line == current_field.description
 
 
-@pytest.mark.parametrize("docstring_style", ["google", "numpy", "scverse"], indirect=True)
+@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
 def test_override_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
     lines = parser(inspect.getdoc(settings.override) or "").lines()
@@ -210,62 +211,18 @@ def test_annotation_format(attr: str, expected: str) -> None:
 
     class Local: ...
 
-    class S(Settings, exported_object_name="s", docstring_style="google"):
+    class S(Settings):
         if attr == "string":
-            string: str
+            string: str = "abc"
         if attr == "pattern":
-            pattern: re.Pattern[str]
+            pattern: re.Pattern[str] = re.compile("abc")
         if attr == "local":
-            local: Local
+            local: Local = Local()
 
-    lines = (inspect.getdoc(S) or "").splitlines()
+    settings = S()
+
+    lines = (inspect.getdoc(settings) or "").splitlines()
+    sphinx_ext._process_settings_object(settings, "tests.s", lines)
     lines = lines[lines.index(f".. attribute:: s.{attr}") + 1 :]
 
-    assert lines == [f"   :type: {expected}"]
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _sphinx_config(sphinx_test_tempdir: Path) -> None:
-    """Since we only need one, we use this instead of static roots like `@pytest.mark.sphinx('html', testroot="mybook")`."""
-    p = sphinx_test_tempdir / "root" / "conf.py"
-    p.parent.mkdir(parents=True)
-    p.write_text("""
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_autodoc_typehints"]
-typehints_defaults = "braces"
-""")
-
-
-@pytest.mark.parametrize("docstring_style", ["scverse"])
-@pytest.mark.parametrize("parent", ["class", "object"])
-def test_sphinx_autodoc_typehints(
-    subtests: pytest.Subtests,
-    app: Sphinx,
-    settings_class: type[DummySettings],
-    settings: DummySettings,
-    parent: Literal["class", "object"],
-) -> None:
-    import sphinx_autodoc_typehints
-    from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
-
-    obj = (settings if parent == "object" else settings_class).override
-    lines = (inspect.getdoc(obj) or "").splitlines()
-    lines = NumpyDocstring(lines, app.config, app, "method", "", obj).lines()
-
-    with subtests.test("napoleon"):
-        # test that napoleon can parse things correctly
-        # especially the last parameter could fail to parse if there are not enough trailing newlines
-        for name in settings_class.model_fields:
-            assert f":param {name}:" in "\n".join(lines)
-
-    sphinx_autodoc_typehints.process_docstring(app, "method", "", obj, options=None, lines=lines)
-
-    with subtests.test("type"):  # no need to test all parameters
-        assert (
-            r":type field_bool: :sphinx_autodoc_typehints_type:`\:py\:class\:\`bool\`` (default: ``<no change>``)"
-            in lines
-        )
-    with subtests.test("rtype"):
-        assert (
-            r":rtype: :sphinx_autodoc_typehints_type:`\:py\:class\:\`\~contextlib.AbstractContextManager\`\\ \\\[\:py\:obj\:\`None\`\]`"
-            in lines
-        )
+    assert lines[0] == f"   :type: {expected}"
