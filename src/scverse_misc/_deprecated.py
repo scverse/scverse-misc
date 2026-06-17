@@ -104,7 +104,7 @@ class deprecated_arg:
 
     def __init__(
         self, arg: LiteralString, msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1
-    ):
+    ) -> None:
         self.arg = arg
         self.msg = msg
         self.category = category

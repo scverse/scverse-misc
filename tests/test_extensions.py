@@ -78,7 +78,7 @@ def test_accessor_namespace() -> None:
 
     # Define a dummy namespace class to be used via the descriptor.
     class DummyNamespace:
-        def __init__(self, obj: Dummy):
+        def __init__(self, obj: Dummy) -> None:
             self._obj = obj
 
         def foo(self) -> str:
@@ -212,7 +212,7 @@ def test_missing_annotation() -> None:
 
         @register_dummy_namespace("missing_annotation")
         class MissingAnnotationNamespace:
-            def __init__(self, obj) -> None:  # type: ignore[no-untyped-def]
+            def __init__(self, obj) -> None:  # type: ignore[no-untyped-def]  # noqa: ANN001
                 self.obj = obj
 
 
