@@ -9,9 +9,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, cast, get_args, get_origin
 
 import pytest
 from pydantic import Field, ValidationError
-from pydantic.fields import FieldInfo
 from pydantic_settings import SettingsConfigDict
-from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 from scverse_misc import Settings, sphinx_ext
 
@@ -24,14 +22,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
-    return getattr(request, "param", "google")
-
-
-@pytest.fixture
-def settings_class_factory(docstring_style: Literal["google", "numpy"]) -> Callable[[], type[DummySettings]]:
+def settings_class_factory() -> Callable[[], type[DummySettings]]:
     def settings_class() -> type[DummySettings]:
-        class _DummySettings(Settings, exported_object_name="settings", docstring_style=docstring_style):
+        class _DummySettings(Settings):
             field_bool: bool = False
             """Boolean field."""
 
@@ -149,51 +142,6 @@ def test_reset_annotations(settings: DummySettings) -> None:
         "names": Literal["field_bool", "field_no_docstring", "field_int_range"],
         "return": AbstractContextManager[frozenset[Literal["field_bool", "field_no_docstring", "field_int_range"]]],
     }
-
-
-@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
-def test_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
-    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
-
-    lines = (inspect.getdoc(settings) or "").splitlines()
-    sphinx_ext._process_settings_object(settings, "tests.settings", lines)
-    lines = parser(lines).lines()
-
-    assert lines[0].endswith("`tests` package.")
-
-    current_field: FieldInfo | None = None
-    field_iter = iter(type(settings).model_fields.items())
-    for line in lines:
-        if line.startswith(".. attribute::"):
-            current_field_name, current_field = next(field_iter)
-            assert line.endswith(current_field_name)
-        elif current_field is not None:
-            line = line.strip()
-            if line.startswith(":type:"):
-                assert current_field.annotation is not None
-                assert line.endswith(current_field.annotation.__name__)
-            elif line.startswith(":value:"):
-                assert line.endswith(repr(current_field.default))
-            elif len(line) > 0 and current_field.description is not None:
-                assert line == current_field.description
-
-
-@pytest.mark.parametrize("docstring_style", ["google", "numpy"], indirect=True)
-def test_override_docs(docstring_style: Literal["google", "numpy"], settings: DummySettings) -> None:
-    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
-    lines = parser(inspect.getdoc(settings.override) or "").lines()
-
-    current_field: FieldInfo | None = None
-    field_iter = iter(type(settings).model_fields.items())
-    for line in lines:
-        if line.startswith(":param"):
-            current_field_name, current_field = next(field_iter)
-            description = f" {current_field.description}" if current_field.description is not None else ""
-            # no default here, as the default is “leave this value alone”
-            assert line.startswith(f":param {current_field_name}:{description}")
-        elif current_field is not None and len(line) > 0:
-            assert current_field.annotation is not None
-            assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
 
 
 @pytest.mark.parametrize(

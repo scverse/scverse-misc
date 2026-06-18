@@ -27,9 +27,7 @@ class DummyClass:
     dummy: Greeter  # available when using `dummy_namespace` fixture
 
 
-register_dummy_namespace = make_register_namespace_decorator(
-    DummyClass, "obj", "register_dummy_namespace", docstring_style="google"
-)
+register_dummy_namespace = make_register_namespace_decorator(DummyClass, "obj")
 
 
 @pytest.fixture
