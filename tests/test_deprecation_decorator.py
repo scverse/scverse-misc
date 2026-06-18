@@ -147,9 +147,12 @@ def test_deprecated_arg_decorator(
         if msg is not None:
             stripped = lines[i + 1].strip()
             assert stripped == ".. version-deprecated:: 2.718"
-            assert lines[i + 2][prefixlen:] == f"   {msg}"
-            assert not lines[i + 3]
-            assert lines[i + 4][:prefixlen] == " " * prefixlen
+            msg_lines = msg.splitlines()
+            for j, msg_line in enumerate(msg_lines):
+                indent = "    " if j == 0 else " "
+                assert lines[i + 2 + j][prefixlen:] == f"{indent}{msg_line}"
+            assert not lines[i + 2 + len(msg_lines)]
+            assert lines[i + 3 + len(msg_lines)][:prefixlen] == " " * prefixlen
         else:
             assert line == f":param {arg}: .. version-deprecated:: 2.718"
             assert not lines[i + 1]
