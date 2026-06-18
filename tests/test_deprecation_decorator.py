@@ -140,7 +140,7 @@ def test_deprecated_arg_decorator(
 
     n_params = 0
     for i, line in enumerate(lines):
-        if not line.startswith(prefix := f":param {arg}: "):
+        if not line.startswith(prefix := f":param {arg}:"):
             continue
         n_params += 1
         prefixlen = len(prefix)
@@ -155,4 +155,4 @@ def test_deprecated_arg_decorator(
             assert not lines[i + 1]
             assert lines[i + 2][:prefixlen] == " " * prefixlen
 
-    assert n_params == 1  # we only try to find one
+    assert n_params == 1  # we only try to find `arg`
