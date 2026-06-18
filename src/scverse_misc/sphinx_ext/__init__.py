@@ -3,11 +3,10 @@ from __future__ import annotations
 import sys
 import textwrap
 import warnings
-from collections.abc import Callable
 from importlib.metadata import version
 from textwrap import indent
-from types import FunctionType, GenericAlias, MethodType
-from typing import TYPE_CHECKING, Any, cast
+from types import MethodType
+from typing import TYPE_CHECKING, cast
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as deprecated
@@ -24,7 +23,8 @@ try:
 
     from .._settings import Settings
 except ImportError:
-    pass
+    if not TYPE_CHECKING:
+        Settings = type("Settings", (), {})
 
 
 if TYPE_CHECKING:
@@ -32,6 +32,9 @@ if TYPE_CHECKING:
     from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
     from sphinx.util.typing import ExtensionMetadata
+
+
+__all__ = ["setup"]
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
@@ -210,14 +213,10 @@ def _process_settings_method(app: Sphinx, method: MethodType, lines: list[str]) 
 
 def _process_settings_method_override(app: Sphinx, method: MethodType, lines: list[str]) -> None:
     settings = cast("Settings", method.__self__)
-
-    params = []
-    for fname, field in type(settings).model_fields.items():
-        param = Parameter([fname], type_annotation=type_str(type(settings), field), description=field.description)
-        if field.default is not PydanticUndefined:
-            param.default_value = repr(field.default)
-        params.append(param)
-
+    params = [
+        Parameter([fname], type_annotation=type_str(type(settings), field), description=field.description)
+        for fname, field in type(settings).model_fields.items()
+    ]
     model = Docstring(
         summary="Provides local override via keyword arguments as a context manager.",
         sections=[Section(SectionKind.PARAMETERS, parameters=params)],

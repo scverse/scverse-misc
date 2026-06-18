@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal, cast, get_args
+from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
@@ -25,22 +25,16 @@ def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
 
-type DocstringStyles = Literal["no_docstring", "short", "long_numpystyle", "long_googlestyle"]
-
-
-@pytest.fixture(params=get_args(DocstringStyles.__value__))
-def docstring_style(request: pytest.FixtureRequest) -> DocstringStyles:
-    return cast(DocstringStyles, request.param)
-
-
-@pytest.fixture
-def docstring(docstring_style: DocstringStyles) -> str | None:
-    match docstring_style:
+@pytest.fixture(scope="session", params=["no_docstring", "short", "long_googlestyle", "long_numpystyle"])
+def docstring(request: pytest.FixtureRequest, docstring_style: Literal["google", "numpy"]) -> str | None:
+    match request.param:
         case "no_docstring":
             return None
         case "short":
             return "Test function"
         case "long_numpystyle":
+            if docstring_style == "google":
+                pytest.skip("only google docstring parser enabled")
             return """Test function
 
             This is a test.
@@ -57,6 +51,8 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
                 foobar
             """
         case "long_googlestyle":
+            if docstring_style == "numpy":
+                pytest.skip("only numpy docstring parser enabled")
             return """Test function
 
             This is a test.
@@ -68,6 +64,8 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
                 positional_or_keyword_default: baz
                 keyword_only_default: foobar
             """
+        case typ:
+            pytest.fail(f"Unknown docstring style {typ}")
 
 
 @pytest.fixture
@@ -120,7 +118,7 @@ def test_deprecation_decorator(
     ("positional_only_no_default", "positional_only_default", "positional_or_keyword_default", "keyword_only_default"),
 )
 def test_deprecated_arg_decorator(
-    func: Callable[..., int], msg: str | None, arg: str, docstring_style: DocstringStyles
+    func: Callable[..., int], msg: str | None, arg: str, docstring_style: Literal["google", "numpy"]
 ) -> None:
     deprecated_func = deprecated_arg(arg, Deprecation("2.718", msg or ""))(func)
     with pytest.warns(FutureWarning, match=f"{arg} is deprecated"):
@@ -131,29 +129,27 @@ def test_deprecated_arg_decorator(
             warnings.simplefilter("error")
             assert deprecated_func(1) == 42
 
-    parser: type[NumpyDocstring] | type[GoogleDocstring] | None = None
-    if docstring_style == "long_numpystyle":
-        parser = NumpyDocstring
-    elif docstring_style == "long_googlestyle":
-        parser = GoogleDocstring
-
-    if parser is None:
+    if "\n" not in (func.__doc__ or ""):
         return
+
+    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
 
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
     sphinx_ext._process_deprecated_args(deprecated_func.__scverse_misc_deprecated_arg__, lines)
     lines = parser(lines).lines()
 
-    for i, line in enumerate(lines):
-        if line.startswith(prefix := f":param {arg}: "):
-            prefixlen = len(prefix)
-            if msg is not None:
-                stripped = lines[i + 1].strip()
-                assert stripped == ".. version-deprecated:: 2.718"
-                assert lines[i + 2][prefixlen:] == f"   {msg}"
-                assert not lines[i + 3]
-                assert lines[i + 4][:prefixlen] == " " * prefixlen
-            else:
-                assert line == f":param {arg}: .. version-deprecated:: 2.718"
-                assert not lines[i + 1]
-                assert lines[i + 2][:prefixlen] == " " * prefixlen
+    prefix = f":param {arg}:"
+    prefixlen = len(prefix)
+    lines = lines[next(i for i, line in enumerate(lines) if line.startswith(prefix)) :]
+    if msg is not None:
+        assert lines[1].strip() == ".. version-deprecated:: 2.718"
+        msg_lines = msg.splitlines()
+        for j, msg_line in enumerate(msg_lines):
+            indent = "    " if j == 0 else " "
+            assert lines[2 + j][prefixlen:] == f"{indent}{msg_line}"
+        assert not lines[2 + len(msg_lines)]
+        assert lines[3 + len(msg_lines)][:prefixlen] == " " * prefixlen
+    else:
+        assert lines[0] == f":param {arg}: .. version-deprecated:: 2.718"
+        assert not lines[1]
+        assert lines[2][:prefixlen] == " " * prefixlen

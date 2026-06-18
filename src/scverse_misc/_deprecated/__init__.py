@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import inspect
-import sys
 from functools import wraps
-from textwrap import indent
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
