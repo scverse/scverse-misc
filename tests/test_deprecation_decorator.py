@@ -129,22 +129,30 @@ def test_deprecated_arg_decorator(
             warnings.simplefilter("error")
             assert deprecated_func(1) == 42
 
+    if "\n" not in (func.__doc__ or ""):
+        return
+
     parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
 
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
     sphinx_ext._process_deprecated_args(deprecated_func.__scverse_misc_deprecated_arg__, lines)
     lines = parser(lines).lines()
 
+    n_params = 0
     for i, line in enumerate(lines):
-        if line.startswith(prefix := f":param {arg}: "):
-            prefixlen = len(prefix)
-            if msg is not None:
-                stripped = lines[i + 1].strip()
-                assert stripped == ".. version-deprecated:: 2.718"
-                assert lines[i + 2][prefixlen:] == f"   {msg}"
-                assert not lines[i + 3]
-                assert lines[i + 4][:prefixlen] == " " * prefixlen
-            else:
-                assert line == f":param {arg}: .. version-deprecated:: 2.718"
-                assert not lines[i + 1]
-                assert lines[i + 2][:prefixlen] == " " * prefixlen
+        if not line.startswith(prefix := f":param {arg}: "):
+            continue
+        n_params += 1
+        prefixlen = len(prefix)
+        if msg is not None:
+            stripped = lines[i + 1].strip()
+            assert stripped == ".. version-deprecated:: 2.718"
+            assert lines[i + 2][prefixlen:] == f"   {msg}"
+            assert not lines[i + 3]
+            assert lines[i + 4][:prefixlen] == " " * prefixlen
+        else:
+            assert line == f":param {arg}: .. version-deprecated:: 2.718"
+            assert not lines[i + 1]
+            assert lines[i + 2][:prefixlen] == " " * prefixlen
+
+    assert n_params == 1  # we only try to find one
