@@ -115,15 +115,18 @@ def _load_anndata(entry: DatasetEntry, target: Path, download: DownloadCB, /, **
 
 @register_loader("spatialdata")
 def _load_spatialdata(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> SpatialData:
-    """Built-in loader: download a ``.zip``, unzip it (via pooch) to ``<name>.zarr`` and read it.
+    """Built-in loader: download a ``.zip``, unzip it (via pooch) and read the single ``.zarr`` store inside.
 
+    Extracts into a per-dataset directory so the ``.zarr`` can be found by glob (its name need not match
+    the registry key) without colliding with other spatialdata datasets cached under the same ``target``.
     Needs the ``spatialdata`` extra.
     """
     import pooch
     import spatialdata as sd
 
-    download(entry.file(suffix=".zip"), processor=pooch.Unzip(extract_dir="."))
-    zarr_path = target / f"{entry.name}.zarr"
-    if not zarr_path.exists():
-        raise RuntimeError(f"Expected extracted data at {zarr_path}, but it was not found.")
-    return sd.read_zarr(zarr_path, **cast("dict[str, Any]", kwargs))
+    dest = target / entry.name
+    download(entry.file(suffix=".zip"), dest=dest, processor=pooch.Unzip(extract_dir="."))
+    zarrs = sorted(dest.glob("*.zarr"))
+    if len(zarrs) != 1:
+        raise RuntimeError(f"Expected exactly one .zarr extracted under {dest}, found {len(zarrs)}: {zarrs}.")
+    return sd.read_zarr(zarrs[0], **cast("dict[str, Any]", kwargs))

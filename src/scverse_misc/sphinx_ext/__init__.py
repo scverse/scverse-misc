@@ -39,12 +39,12 @@ def _process_docstring(
 ) -> None:
     match objtype:
         case "function" if hasattr(obj, "__scverse_misc_create_namespace__") and hasattr(
-            obj, "__scverse_misc_namespace_name__"
+            obj, "__scverse_misc_canonical_instance_name__"
         ):
             assert isinstance(obj.__scverse_misc_create_namespace__, type)
-            assert isinstance(obj.__scverse_misc_namespace_name__, str)
+            assert isinstance(obj.__scverse_misc_canonical_instance_name__, str)
             _process_namespace_decorator(
-                app, name, obj.__scverse_misc_create_namespace__, obj.__scverse_misc_namespace_name__, lines
+                app, name, obj.__scverse_misc_create_namespace__, obj.__scverse_misc_canonical_instance_name__, lines
             )
         case "method" | "function" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
             _process_settings_method(app, obj, lines)

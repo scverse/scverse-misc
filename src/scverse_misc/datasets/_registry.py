@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Any
 
 import yaml
@@ -72,6 +72,9 @@ class DatasetEntry:
         return matches[0]
 
 
+_FILE_FIELDS = frozenset(f.name for f in fields(FileEntry))
+
+
 def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, DatasetEntry]]:
     """Parse a YAML registry into ``(base_url, {name: DatasetEntry})``.
 
@@ -86,7 +89,11 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
         name: DatasetEntry(
             name=name,
             type=row["type"],
-            files=tuple(FileEntry(**fd) for fd in row.get("files", [])),
+            files=tuple(
+                # ponytail: drop unknown keys so per-file extras (e.g. `description`) don't crash the parse
+                FileEntry(**{k: v for k, v in fd.items() if k in _FILE_FIELDS})
+                for fd in row.get("files", [])
+            ),
             metadata={k: v for k, v in row.items() if k not in ("type", "files")},
         )
         for name, row in (config.get("datasets") or {}).items()
