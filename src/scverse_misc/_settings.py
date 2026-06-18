@@ -63,7 +63,7 @@ class Settings(BaseSettings):
         *,
         exported_object_name: str | None = None,
         docstring_style: Literal["google", "numpy", "scverse"] | None = None,
-    ):
+    ) -> None:
         if exported_object_name is not None:
             warnings.warn(
                 "The exported_object_name class argument is deprecated and will be removed in the future.",
