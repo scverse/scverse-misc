@@ -107,7 +107,7 @@ def test_annotation_format(
     settings = S()
 
     lines = (inspect.getdoc(settings) or "").splitlines()
-    _process_docstring(app, "data", "tests.settings", settings, AutodocOptions(), lines)  # type: ignore[arg-type]
+    _process_docstring(app, "data", "tests.settings", settings, AutodocOptions(), lines)
     lines = parser(lines).lines()
     lines = lines[lines.index(f".. attribute:: settings.{attr}") + 1 :]
 
