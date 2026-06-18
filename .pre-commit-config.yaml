@@ -46,6 +46,7 @@ repos:
       - pydantic-settings
       - pydocstring-rs
       - pytest
+      - rich
       - sphinx
       - sphinx-autodoc-typehints
       - sphinxcontrib-katex
