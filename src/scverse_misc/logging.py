@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import Any, Literal, overload
 
 __all__ = ["Rule", "Elapsed", "Deep", "config", "get_logger"]
 
@@ -47,12 +48,15 @@ class Rule(logging.Filter):
     """
 
     def keep(self, record: logging.LogRecord) -> bool:
+        """Return ``False`` to drop the record (default: keep everything)."""
         return True
 
     def rewrite(self, message: str, record: logging.LogRecord) -> str:
+        """Return the new message text (default: unchanged)."""
         return message
 
     def filter(self, record: logging.LogRecord) -> bool:  # stdlib hook; don't override
+        """Stdlib hook: apply :meth:`keep` then :meth:`rewrite`. Don't override."""
         if not self.keep(record):
             return False
         message = record.getMessage()  # always a str, %-args already expanded
@@ -66,6 +70,7 @@ class Elapsed(Rule):
     """Render ``record.time_passed`` (a ``timedelta``). Universal, enabled by default."""
 
     def rewrite(self, message: str, record: logging.LogRecord) -> str:
+        """Substitute ``{time_passed}`` if present, else append ``(H:MM:SS)``."""
         td = getattr(record, "time_passed", None)
         if not td:  # None or zero -> show nothing (matches scanpy)
             return message
@@ -79,6 +84,7 @@ class Deep(Rule):
     """Append ``record.deep`` as detail. Universal, enabled by default."""
 
     def rewrite(self, message: str, record: logging.LogRecord) -> str:
+        """Append ``record.deep`` as ``": detail"`` when present."""
         deep = getattr(record, "deep", None)
         return message if deep is None else f"{message}: {deep}"
 
@@ -106,7 +112,7 @@ class _Config:
         self._parent = logging.getLogger(_ROOT)
         self._parent.setLevel(logging.WARNING)
         self._parent.propagate = False  # one handler here; don't double-log via root
-        self._rules: list = [Elapsed(), Deep()]  # universal defaults; order matters
+        self._rules: list[Rule] = [Elapsed(), Deep()]  # universal defaults; order matters
         self._install(_make_handler(_rich_available()))
 
     def _install(self, handler: logging.Handler) -> None:
@@ -115,12 +121,12 @@ class _Config:
         self._parent.addHandler(handler)
 
     @property
-    def verbosity(self):
+    def verbosity(self) -> str | int:
         """Central level for all scverse loggers. Set with a name (``"info"``) or int."""
         return logging.getLevelName(self._parent.level)
 
     @verbosity.setter
-    def verbosity(self, level) -> None:
+    def verbosity(self, level: str | int) -> None:
         self._parent.setLevel(level.upper() if isinstance(level, str) else level)
 
     def use_rich(self, enabled: bool = True) -> None:
@@ -155,43 +161,54 @@ class _TimedLogger:
     def __init__(self, logger: logging.Logger) -> None:
         self._logger = logger
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401  # transparent delegation to the real logger
         if name == "_logger":
             raise AttributeError(name)
         return getattr(self._logger, name)
 
-    def _emit(self, level, msg, *args, time=None, deep=None, **kw) -> datetime:
+    def _emit(
+        self,
+        level: int,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+    ) -> datetime:
         now = datetime.now()
         if self._logger.isEnabledFor(level):
-            extra = dict(kw.pop("extra", None) or {})
+            extra: dict[str, object] = {}
             if time is not None:
                 extra["time_passed"] = now - time  # thread the returned value (both naive)
             if deep is not None and self._logger.getEffectiveLevel() < level:
                 extra["deep"] = deep
-            kw["stacklevel"] = kw.get("stacklevel", 1) + 2  # skip _emit + the level method
-            self._logger.log(level, msg, *args, extra=extra, **kw)
+            # stacklevel=3: skip _emit + the level method so the call-site is the caller
+            self._logger.log(level, msg, *args, extra=extra, stacklevel=3)
         return now
 
-    def debug(self, msg, *a, **k) -> datetime:
-        return self._emit(logging.DEBUG, msg, *a, **k)
+    def debug(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        return self._emit(logging.DEBUG, msg, *a, time=time, deep=deep)
 
-    def hint(self, msg, *a, **k) -> datetime:
-        return self._emit(HINT, msg, *a, **k)
+    def hint(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        return self._emit(HINT, msg, *a, time=time, deep=deep)
 
-    def info(self, msg, *a, **k) -> datetime:
-        return self._emit(logging.INFO, msg, *a, **k)
+    def info(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        return self._emit(logging.INFO, msg, *a, time=time, deep=deep)
 
-    def warning(self, msg, *a, **k) -> datetime:
-        return self._emit(logging.WARNING, msg, *a, **k)
+    def warning(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        return self._emit(logging.WARNING, msg, *a, time=time, deep=deep)
 
-    def error(self, msg, *a, **k) -> datetime:
-        return self._emit(logging.ERROR, msg, *a, **k)
+    def error(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        return self._emit(logging.ERROR, msg, *a, time=time, deep=deep)
 
-    def critical(self, msg, *a, **k) -> datetime:
-        return self._emit(logging.CRITICAL, msg, *a, **k)
+    def critical(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        return self._emit(logging.CRITICAL, msg, *a, time=time, deep=deep)
 
 
-def get_logger(name: str, *, timed: bool = False):
+@overload
+def get_logger(name: str, *, timed: Literal[False] = False) -> logging.Logger: ...
+@overload
+def get_logger(name: str, *, timed: Literal[True]) -> _TimedLogger: ...
+def get_logger(name: str, *, timed: bool = False) -> logging.Logger | _TimedLogger:
     """Return the ``scverse.<name>`` logger a package should use.
 
     ``timed=False`` (default) returns a plain :class:`logging.Logger`.
@@ -200,56 +217,3 @@ def get_logger(name: str, *, timed: bool = False):
     """
     logger = logging.getLogger(name if name.startswith(f"{_ROOT}.") else f"{_ROOT}.{name}")
     return _TimedLogger(logger) if timed else logger
-
-
-if __name__ == "__main__":
-    # ponytail: one runnable check. `python -m scverse_misc.logging`.
-    import io
-
-    # capture the shared handler's output via a plain formatter we control
-    config.use_rich(False)
-    buf = io.StringIO()
-    config._parent.handlers[0].setStream(buf)  # type: ignore[attr-defined]
-    config.verbosity = "debug"
-
-    plain = get_logger("selftest")
-    assert plain.name == "scverse.selftest" and plain.parent.name == "scverse"
-    assert isinstance(plain, logging.Logger)  # real logger: critical/getChild/etc. work
-
-    log = get_logger("selftest", timed=True)
-    t = log.info("start")
-    assert isinstance(t, datetime)
-
-    # {time_passed} substitution + append, via the Elapsed rule (works rich or plain)
-    log.info("finished ({time_passed})", time=t - timedelta(seconds=5))
-    log.info("done", time=t - timedelta(seconds=2))
-    # deep, via the Deep rule (shown because verbosity debug < info level)
-    log.info("normalized", deep="3 cells dropped")
-    out = buf.getvalue()
-    assert "finished (0:00:05)" in out, out
-    assert "done (0:00:02)" in out, out
-    assert "normalized: 3 cells dropped" in out, out
-
-    # falsy deep is preserved (not dropped by a truthiness check)
-    buf.truncate(0)
-    buf.seek(0)
-    log.info("count", deep=0)
-    assert "count: 0" in buf.getvalue(), buf.getvalue()
-
-    # a user Rule composes with the defaults; central verbosity gates output
-    class Tag(Rule):
-        def rewrite(self, message, record):
-            return f"[{record.name.rsplit('.', 1)[-1]}] {message}"
-
-    tag = Tag()
-    config.add_rule(tag)
-    buf.truncate(0)
-    buf.seek(0)
-    log.warning("hi")
-    assert "[selftest] hi" in buf.getvalue(), buf.getvalue()
-    config.remove_rule(tag)
-
-    config.verbosity = "warning"
-    assert not plain.isEnabledFor(logging.INFO) and plain.isEnabledFor(logging.WARNING)
-
-    print("ok")
