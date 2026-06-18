@@ -7,16 +7,17 @@ from textwrap import indent
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
-if sys.version_info >= (3, 13):
-    from warnings import deprecated as _deprecated
-else:
-    from typing_extensions import deprecated as _deprecated
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
 __all__ = ["deprecated", "deprecated_arg", "Deprecation"]
+
+
+if TYPE_CHECKING:
+    from .decorator import _deprecated as deprecated
+else:
+    from .decorator import deprecated
 
 
 class Deprecation(str):
@@ -36,45 +37,6 @@ class Deprecation(str):
         obj = super().__new__(cls, msg)
         obj.version_deprecated = version_deprecated
         return obj
-
-
-if TYPE_CHECKING:
-    deprecated = _deprecated
-else:
-
-    class deprecated(_deprecated):
-        """Decorator to indicate that a class, function, or overload is deprecated.
-
-        Wraps :func:`warnings.deprecated`. If the scverse_misc Sphinx extension is enabled, the function's documentation will
-        include a deprecation notice.
-
-        Args:
-            msg: The deprecation message.
-            category: The category of the warning that will be emitted at runtime.
-            stacklevel: The stack level of the warning.
-
-        Examples:
-            >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
-            ... def foo(baz):
-            ...     pass
-        """
-
-        def __init__(self, msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1):
-            super().__init__(msg, category=category, stacklevel=stacklevel)
-
-        def __call__[F: Callable[..., object]](self, func: F) -> F:
-            kind = "function" if func.__name__ == func.__qualname__ else "method"
-            warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
-            if len(self.message):
-                warnmsg += (
-                    f". {self.message}" if self.message.count("\n") == 0 else f":\n{indent(self.message, 4 * ' ')}"
-                )
-            else:
-                warnmsg += "."
-            newmsg = Deprecation(self.message.version_deprecated, warnmsg)
-            newmsg._docmsg = str(self.message)
-            self.message = newmsg
-            return super().__call__(func)
 
 
 class CallableWithDeprecatedArg[**P, R](Protocol):
