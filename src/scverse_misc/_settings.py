@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from types import FunctionType
-from typing import Literal, LiteralString, Self
+from typing import Final, Literal, LiteralString, Self
 
 import dotenv
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
@@ -76,6 +76,10 @@ class Settings(BaseSettings):
                 category=DeprecationWarning,
                 stacklevel=2,
             )
+
+        env_file = dotenv.find_dotenv(usecwd=True)
+        dotenv_filtering: Final = "only_existing"
+
         if (config := subcls.__dict__.get("model_config")) is not None:
             if not config.get("validate_assignment", True):
                 warnings.warn("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, stacklevel=2)
@@ -83,13 +87,15 @@ class Settings(BaseSettings):
                 warnings.warn(
                     "`use_attribute_docstrings=False` is not supported, overriding.", RuntimeWarning, stacklevel=2
                 )
-            if config.get("env_file") is not None:
+            if config.get("env_file") not in (None, "", env_file):
                 warnings.warn(
-                    "Setting a custom env_file location is not supported, overriding.", RuntimeWarning, stacklevel=2
+                    f"Setting a custom env_file location is not supported, overriding {config['env_file']=}.",
+                    RuntimeWarning,
+                    stacklevel=2,
                 )
-            if config.get("dotenv_filtering") is not None:
+            if config.get("dotenv_filtering") not in (None, dotenv_filtering):
                 warnings.warn(
-                    "Setting a custom dotenv_filtering scheme is not supported, overriding.",
+                    f"Setting a custom dotenv_filtering scheme is not supported, overriding {config['dotenv_filtering']=}.",
                     RuntimeWarning,
                     stacklevel=2,
                 )
@@ -98,8 +104,8 @@ class Settings(BaseSettings):
 
         config["validate_assignment"] = True
         config["use_attribute_docstrings"] = True
-        config["env_file"] = dotenv.find_dotenv(usecwd=True)
-        config["dotenv_filtering"] = "only_existing"
+        config["env_file"] = env_file
+        config["dotenv_filtering"] = dotenv_filtering
 
         if not config.get("env_prefix"):
             config["env_prefix"] = f"{get_packagename(subcls)}_"
