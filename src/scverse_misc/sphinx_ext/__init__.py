@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import textwrap
 import warnings
-from collections.abc import Callable
 from importlib.metadata import version
-from types import FunctionType, GenericAlias, MethodType
-from typing import TYPE_CHECKING, Any, cast
+from types import MethodType
+from typing import TYPE_CHECKING, cast
 
 from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
-
-from scverse_misc._settings import CustomRepr
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._utils import get_packagename, type_str
