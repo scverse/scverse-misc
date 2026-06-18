@@ -17,7 +17,8 @@ try:
 
     from .._settings import Settings
 except ImportError:
-    pass
+    if not TYPE_CHECKING:
+        Settings = type("Settings", (), {})
 
 
 if TYPE_CHECKING:
@@ -25,6 +26,9 @@ if TYPE_CHECKING:
     from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
     from sphinx.util.typing import ExtensionMetadata
+
+
+__all__ = ["setup"]
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103

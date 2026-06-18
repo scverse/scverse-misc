@@ -25,10 +25,10 @@ def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
 
-type DocstringStyles = Literal["no_docstring", "short", "long_numpystyle", "long_googlestyle"]
+type DocstringStyles = Literal["no_docstring", "short", "google", "numpy"]
 
 
-@pytest.fixture(params=get_args(DocstringStyles.__value__))
+@pytest.fixture(scope="session", params=get_args(DocstringStyles.__value__))
 def docstring_style(request: pytest.FixtureRequest) -> DocstringStyles:
     return cast(DocstringStyles, request.param)
 
@@ -40,7 +40,7 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
             return None
         case "short":
             return "Test function"
-        case "long_numpystyle":
+        case "numpy":
             return """Test function
 
             This is a test.
@@ -56,7 +56,7 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
             keyword_only_default
                 foobar
             """
-        case "long_googlestyle":
+        case "google":
             return """Test function
 
             This is a test.
