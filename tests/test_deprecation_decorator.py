@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal, cast, get_args
+from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
@@ -25,22 +25,16 @@ def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
 
-type DocstringStyles = Literal["no_docstring", "short", "google", "numpy"]
-
-
-@pytest.fixture(scope="session", params=get_args(DocstringStyles.__value__))
-def docstring_style(request: pytest.FixtureRequest) -> DocstringStyles:
-    return cast(DocstringStyles, request.param)
-
-
-@pytest.fixture
-def docstring(docstring_style: DocstringStyles) -> str | None:
-    match docstring_style:
+@pytest.fixture(scope="session", params=["no_docstring", "short", "long_googlestyle", "long_numpystyle"])
+def docstring(request: pytest.FixtureRequest, docstring_style: Literal["google", "numpy"]) -> str | None:
+    match request.param:
         case "no_docstring":
             return None
         case "short":
             return "Test function"
-        case "numpy":
+        case "long_numpystyle":
+            if docstring_style == "google":
+                pytest.skip("only google docstring parser enabled")
             return """Test function
 
             This is a test.
@@ -56,7 +50,9 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
             keyword_only_default
                 foobar
             """
-        case "google":
+        case "long_googlestyle":
+            if docstring_style == "numpy":
+                pytest.skip("only numpy docstring parser enabled")
             return """Test function
 
             This is a test.
@@ -68,6 +64,8 @@ def docstring(docstring_style: DocstringStyles) -> str | None:
                 positional_or_keyword_default: baz
                 keyword_only_default: foobar
             """
+        case typ:
+            pytest.fail(f"Unknown docstring style {typ}")
 
 
 @pytest.fixture
@@ -120,7 +118,7 @@ def test_deprecation_decorator(
     ("positional_only_no_default", "positional_only_default", "positional_or_keyword_default", "keyword_only_default"),
 )
 def test_deprecated_arg_decorator(
-    func: Callable[..., int], msg: str | None, arg: str, docstring_style: DocstringStyles
+    func: Callable[..., int], msg: str | None, arg: str, docstring_style: Literal["google", "numpy"]
 ) -> None:
     deprecated_func = deprecated_arg(arg, Deprecation("2.718", msg or ""))(func)
     with pytest.warns(FutureWarning, match=f"{arg} is deprecated"):
@@ -131,14 +129,7 @@ def test_deprecated_arg_decorator(
             warnings.simplefilter("error")
             assert deprecated_func(1) == 42
 
-    parser: type[NumpyDocstring] | type[GoogleDocstring] | None = None
-    if docstring_style == "long_numpystyle":
-        parser = NumpyDocstring
-    elif docstring_style == "long_googlestyle":
-        parser = GoogleDocstring
-
-    if parser is None:
-        return
+    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
 
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
     sphinx_ext._process_deprecated_args(deprecated_func.__scverse_misc_deprecated_arg__, lines)
