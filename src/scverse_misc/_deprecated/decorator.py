@@ -36,7 +36,7 @@ class deprecated(_deprecated):
 
     message: Deprecation
 
-    def __init__(self, msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1):
+    def __init__(self, msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1) -> None:
         super().__init__(cast("LiteralString", msg), category=category, stacklevel=stacklevel)
 
     def __call__[F](self, func: F) -> F:
