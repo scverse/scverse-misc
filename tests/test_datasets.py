@@ -151,8 +151,10 @@ def test_download_drives_pooch(
     assert calls["fetched"] == "toy.h5ad"
 
 
-# old anndata versions use the old argument
-@pytest.mark.filterwarnings(r"ignore:The (decorator_name|docstring_style) argument is deprecated:DeprecationWarning")
+# old anndata versions use the old arguments
+@pytest.mark.filterwarnings(
+    r"ignore:The (decorator_name|docstring_style|exported_object_name)( class)? argument is deprecated:DeprecationWarning"
+)
 def test_load_anndata_reads_h5ad(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import anndata
 
