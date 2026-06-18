@@ -19,8 +19,8 @@ call-site concern a rule cannot provide (a rule runs after the call returns),
 so they live in an **opt-in** logger: ``get_logger("scanpy", timed=True)``::
 
     log = get_logger("scanpy", timed=True)
-    t = log.info("normalizing")        # returns a datetime
-    log.info("finished ({time_passed})", time=t)   # Elapsed rule renders it
+    t = log.info("normalizing")  # returns a datetime
+    log.info("finished ({time_passed})", time=t)  # Elapsed rule renders it
     log.info("done", time=t, deep="42 cells dropped")
 """
 
@@ -231,7 +231,8 @@ if __name__ == "__main__":
     assert "normalized: 3 cells dropped" in out, out
 
     # falsy deep is preserved (not dropped by a truthiness check)
-    buf.truncate(0); buf.seek(0)
+    buf.truncate(0)
+    buf.seek(0)
     log.info("count", deep=0)
     assert "count: 0" in buf.getvalue(), buf.getvalue()
 
@@ -242,7 +243,8 @@ if __name__ == "__main__":
 
     tag = Tag()
     config.add_rule(tag)
-    buf.truncate(0); buf.seek(0)
+    buf.truncate(0)
+    buf.seek(0)
     log.warning("hi")
     assert "[selftest] hi" in buf.getvalue(), buf.getvalue()
     config.remove_rule(tag)
