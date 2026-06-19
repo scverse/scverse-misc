@@ -29,9 +29,6 @@ class ExtensionNamespace(Protocol):
     Protocol's can't enforce that the `__init__` accepts the correct types. See
     `_check_namespace_signature` for that. This is mainly useful for static type
     checking with mypy and IDEs.
-
-    .. seealso::
-       :ref:`example-extension-namespaces`
     """
 
     def __init__(self, instance: object) -> None:
