@@ -28,7 +28,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Literal, overload
+from typing import Any, Literal, Self, cast, overload
+
+from pydantic import field_validator, model_validator
+
+from ._settings import Settings
 
 __all__ = ["Rule", "Elapsed", "Deep", "TimedLogger", "config", "get_logger"]
 
@@ -105,59 +109,72 @@ def _rich_available() -> bool:
     return find_spec("rich") is not None
 
 
-class _Config:
-    """Central logging configuration; the singleton instance is :data:`config`."""
+class _LogConfig(Settings):
+    """Central logging configuration; the singleton instance is :data:`config`.
 
-    def __init__(self) -> None:
-        self._root = logging.getLogger(_ROOT)
-        self._root.setLevel(logging.WARNING)
-        self._root.propagate = False  # one handler here; don't double-log via root
-        self._rich: bool | None = None  # None = auto-detect rich
-        self._rules: list[Rule] = [Elapsed(), Deep()]  # universal defaults; order matters
-        self._install(_make_handler(self._use_rich()))
+    Subclasses :class:`~scverse_misc.Settings`, so values also load from
+    environment variables (prefix ``SCVERSE_MISC_``) and support the inherited
+    :meth:`override`/:meth:`reset` context managers. The shared ``scverse``
+    logger is the source of truth for the live state; assigning a field
+    re-applies it via the validator below.
+    """
 
-    def _install(self, handler: logging.Handler) -> None:
-        for r in self._rules:
-            handler.addFilter(r)
-        self._root.addHandler(handler)
+    verbosity: str | int = "warning"
+    """Central level for all scverse loggers; a level name (``"info"``) or an int."""
 
-    def _use_rich(self) -> bool:
-        return _rich_available() if self._rich is None else self._rich
+    rich: bool | None = None
+    """Force rich rendering on/off; ``None`` auto-detects whether rich is installed."""
+
+    @field_validator("verbosity")
+    @classmethod
+    def _canonical_level(cls, value: str | int) -> str:
+        """Validate and normalize to a canonical level name (e.g. ``"WARNING"``)."""
+        if isinstance(value, str):
+            if not isinstance(logging.getLevelName(value.upper()), int):
+                raise ValueError(f"unknown log level name: {value!r}")
+            return value.upper()
+        name = logging.getLevelName(value)
+        if name.startswith("Level "):
+            raise ValueError(f"unknown log level: {value!r}")
+        return name
+
+    @model_validator(mode="after")
+    def _apply(self) -> Self:
+        """Push the current settings onto the shared ``scverse`` logger and handler."""
+        root = logging.getLogger(_ROOT)
+        root.propagate = False  # one handler here; don't double-log via root
+        root.setLevel(self.verbosity)
+        use_rich = _rich_available() if self.rich is None else self.rich
+        current = root.handlers[0] if root.handlers else None
+        # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
+        if current is None or isinstance(current, logging.StreamHandler) == use_rich:
+            rules = list(current.filters) if current else [Elapsed(), Deep()]  # carry rules across
+            for h in list(root.handlers):
+                root.removeHandler(h)
+            handler = _make_handler(use_rich)
+            for r in rules:
+                handler.addFilter(r)
+            root.addHandler(handler)
+        return self
 
     @property
-    def verbosity(self) -> str | int:
-        """Central level for all scverse loggers. Set with a name (``"info"``) or int."""
-        return logging.getLevelName(self._root.level)
-
-    @verbosity.setter
-    def verbosity(self, level: str | int) -> None:
-        self._root.setLevel(level.upper() if isinstance(level, str) else level)
+    def _root(self) -> logging.Logger:
+        return logging.getLogger(_ROOT)
 
     @property
-    def rich(self) -> bool:
-        """Whether rich rendering is active. Set ``True``/``False`` to force, ``None`` to auto-detect."""
-        return self._use_rich()
-
-    @rich.setter
-    def rich(self, enabled: bool | None) -> None:
-        self._rich = enabled
-        for h in list(self._root.handlers):
-            self._root.removeHandler(h)
-        self._install(_make_handler(self._use_rich()))
+    def _rules(self) -> list[logging.Filter]:
+        return cast("list[logging.Filter]", self._root.handlers[0].filters)
 
     def add_rule(self, rule: Rule) -> None:
-        self._rules.append(rule)
         for h in self._root.handlers:
             h.addFilter(rule)
 
     def remove_rule(self, rule: Rule) -> None:
-        if rule in self._rules:
-            self._rules.remove(rule)
         for h in self._root.handlers:
             h.removeFilter(rule)
 
 
-config = _Config()
+config = _LogConfig()
 
 
 class TimedLogger:

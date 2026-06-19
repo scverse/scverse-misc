@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
+from pydantic import ValidationError
 
 from scverse_misc import logging as mod
 from scverse_misc.logging import Deep, Elapsed, Rule, TimedLogger, config, get_logger
@@ -129,6 +130,28 @@ def test_verbosity_get_set_by_name_and_int() -> None:
     assert plain.isEnabledFor(logging.WARNING)
     config.verbosity = logging.DEBUG
     assert plain.isEnabledFor(logging.DEBUG)
+
+
+def test_verbosity_rejects_unknown_level() -> None:
+    config.verbosity = "warning"
+    for bad in ("bogus", 999):
+        with pytest.raises(ValidationError):
+            config.verbosity = bad
+    assert config.verbosity == "WARNING"  # rejected assignment leaves the value untouched
+
+
+def test_override_restores_verbosity() -> None:
+    config.verbosity = "warning"
+    with config.override(verbosity="debug"):
+        assert config.verbosity == "DEBUG"
+        assert logging.getLogger("scverse").level == logging.DEBUG
+    assert config.verbosity == "WARNING"
+
+
+def test_env_var_sets_verbosity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SCVERSE_MISC_VERBOSITY", "info")
+    assert mod._LogConfig().verbosity == "INFO"
+    config.verbosity = "warning"  # construction set the shared logger; restore it
 
 
 def test_universal_rules_enabled_by_default() -> None:
