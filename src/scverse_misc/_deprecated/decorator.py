@@ -32,6 +32,9 @@ class deprecated(_deprecated):
         >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
         ... def foo(baz):
         ...     pass
+
+    .. seealso::
+       :ref:`example-deprecating-a-function`, :ref:`example-settings-class`
     """
 
     message: Deprecation
