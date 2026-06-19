@@ -56,7 +56,7 @@ def test_parse_registry(registry: dict[str, DatasetEntry]) -> None:
     assert toy.file(suffix=".h5ad").sha256 == "abc123"
 
 
-def test_parse_registry_tolerates_extra_file_keys(tmp_path: Path) -> None:
+def test_parse_registry_warns_on_extra_file_keys(tmp_path: Path) -> None:
     p = tmp_path / "datasets.yaml"
     p.write_text(
         "datasets:\n"
@@ -67,7 +67,9 @@ def test_parse_registry_tolerates_extra_file_keys(tmp_path: Path) -> None:
         "        url: https://z/x.h5ad\n"
         "        description: an unknown-to-FileEntry key\n"
     )
-    _, datasets = parse_registry(p)  # must not raise on the extra `description` key
+    # unknown keys are dropped (not fatal) but warned about so typos surface
+    with pytest.warns(UserWarning, match="unknown file keys.*description"):
+        _, datasets = parse_registry(p)
     assert datasets["d"].file(name="x.h5ad").url == "https://z/x.h5ad"
 
 
@@ -126,7 +128,6 @@ def test_download_drives_pooch(
     class FakePup:
         def fetch(self, name: str, *, processor: object, progressbar: bool) -> str:
             calls["fetched"] = name
-            calls["processor"] = processor
             return f"/cache/{name}"
 
     def fake_create(**kw: object) -> FakePup:

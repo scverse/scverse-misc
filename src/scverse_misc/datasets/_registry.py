@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Any
 
@@ -75,6 +76,17 @@ class DatasetEntry:
 _FILE_FIELDS = frozenset(f.name for f in fields(FileEntry))
 
 
+def _file_entry(fd: Mapping[str, Any], dataset: str) -> FileEntry:
+    """Build a :class:`FileEntry`, warning on (and dropping) keys it doesn't recognise.
+
+    Unknown keys are tolerated so per-file extras (e.g. ``description``) don't crash the
+    parse, but a warning surfaces likely typos.
+    """
+    if unknown := fd.keys() - _FILE_FIELDS:
+        warnings.warn(f"Ignoring unknown file keys {sorted(unknown)} in dataset {dataset!r}.", stacklevel=3)
+    return FileEntry(**{k: v for k, v in fd.items() if k in _FILE_FIELDS})
+
+
 def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, DatasetEntry]]:
     """Parse a YAML registry into ``(base_url, {name: DatasetEntry})``.
 
@@ -89,11 +101,7 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
         name: DatasetEntry(
             name=name,
             type=row["type"],
-            files=tuple(
-                # ponytail: drop unknown keys so per-file extras (e.g. `description`) don't crash the parse
-                FileEntry(**{k: v for k, v in fd.items() if k in _FILE_FIELDS})
-                for fd in row.get("files", [])
-            ),
+            files=tuple(_file_entry(fd, name) for fd in row.get("files", [])),
             metadata={k: v for k, v in row.items() if k not in ("type", "files")},
         )
         for name, row in (config.get("datasets") or {}).items()
