@@ -18,8 +18,6 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 (example-deprecating-a-function)=
 ## Deprecating a function
 
-*API:* {class}`~scverse_misc.deprecated`, {class}`~scverse_misc.Deprecation`
-
 ### source
 
 ```{literalinclude} sphinx_ext_examples/deprecated_decorator.py
@@ -35,8 +33,6 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 (example-deprecating-a-function-argument)=
 ## Deprecating a function argument
 
-*API:* {class}`~scverse_misc.deprecated_arg`, {class}`~scverse_misc.Deprecation`
-
 ### source
 
 ```{literalinclude} sphinx_ext_examples/deprecated_arg.py
@@ -51,8 +47,6 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 
 (example-settings-class)=
 ## Settings class
-
-*API:* {class}`~scverse_misc.Settings`, {class}`~scverse_misc.deprecated`, {class}`~scverse_misc.Deprecation`
 
 ### source
 
@@ -71,8 +65,6 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 
 (example-extension-namespaces)=
 ## Extension namespaces
-
-*API:* {func}`~scverse_misc.make_register_namespace_decorator`, {class}`~scverse_misc.ExtensionNamespace`
 
 ### source
 
