@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import sys
 import textwrap
 import warnings
 from importlib.metadata import version
+from textwrap import indent
 from types import MethodType
 from typing import TYPE_CHECKING, cast
+
+if sys.version_info >= (3, 13):
+    from warnings import deprecated as deprecated
+else:
+    from typing_extensions import deprecated as deprecated
 
 from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
@@ -170,6 +177,23 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
 
         if field.default is not PydanticUndefined:
             doc.append(f"   :value: {field.default!r}")
+
+        deprecation_version = "???"
+        deprecation_msg = None
+        match field.deprecated:
+            case deprecated():
+                deprecation_msg = field.deprecated.message
+                if isinstance(field.deprecated.message, Deprecation):
+                    deprecation_version = field.deprecated.message.version_deprecated
+            case str():
+                deprecation_msg = field.deprecated
+            case True:
+                deprecation_msg = ""
+        if deprecation_msg is not None:
+            doc.append("")
+            doc.append(f"   .. version-deprecated:: {deprecation_version}")
+            doc.append(indent(deprecation_msg, 6 * " "))
+
         if field.description is not None:
             doc.append("")
             doc.append(f"{textwrap.indent(field.description, '   ')}")
