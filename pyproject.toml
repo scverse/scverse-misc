@@ -27,8 +27,8 @@ dependencies = [
   "session-info2",
   "typing-extensions; python_version<'3.13'",
 ]
-optional-dependencies.rich = [ "rich" ]
 optional-dependencies.datasets = [ "pooch", "pyyaml", "tqdm" ]
+optional-dependencies.rich = [ "rich" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
 optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13", "sphinx>=9" ]
