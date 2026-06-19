@@ -40,7 +40,7 @@ Types used by the former:
 Reusable dataset registry + downloader (requires the `datasets` extra).
 
 ```{eval-rst}
-.. currentmodule:: scverse_misc.datasets
+.. module:: scverse_misc.datasets
 .. autosummary::
     :toctree: generated
 
