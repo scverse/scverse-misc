@@ -1,9 +1,12 @@
 from collections.abc import Callable
 from pathlib import Path
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
 from sphinx.testing.util import SphinxTestApp
+
+if TYPE_CHECKING:
+    from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
 
 pytest_plugins = ["sphinx.testing.fixtures"]
 
@@ -11,6 +14,13 @@ pytest_plugins = ["sphinx.testing.fixtures"]
 @pytest.fixture(scope="session", params=["google", "numpy"])
 def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
     return cast(Literal["google", "numpy"], request.param)
+
+
+@pytest.fixture(scope="session")
+def parser(docstring_style: Literal["google", "numpy"]) -> type[GoogleDocstring | NumpyDocstring]:
+    from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
+
+    return GoogleDocstring if docstring_style == "google" else NumpyDocstring
 
 
 @pytest.fixture

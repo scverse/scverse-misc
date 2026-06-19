@@ -9,6 +9,7 @@ import pytest
 from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 from scverse_misc import Deprecation, deprecated, deprecated_arg, sphinx_ext
+from scverse_misc.constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -96,7 +97,7 @@ def test_deprecation_decorator(
         assert deprecated_func(1, 2) == 42
 
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
-    sphinx_ext._process_deprecated_function(app, deprecated_func.__deprecated__, lines)  # type: ignore[attr-defined]
+    sphinx_ext._process_deprecated_function(app, getattr(deprecated_func, ATTR_DEPRECATED), lines)
     offset = 0 if docstring is None else 2
 
     if docstring is not None:
@@ -118,7 +119,7 @@ def test_deprecation_decorator(
     ("positional_only_no_default", "positional_only_default", "positional_or_keyword_default", "keyword_only_default"),
 )
 def test_deprecated_arg_decorator(
-    func: Callable[..., int], msg: str | None, arg: str, docstring_style: Literal["google", "numpy"]
+    parser: type[GoogleDocstring | NumpyDocstring], func: Callable[..., int], msg: str | None, arg: str
 ) -> None:
     deprecated_func = deprecated_arg(arg, Deprecation("2.718", msg or ""))(func)
     with pytest.warns(FutureWarning, match=f"{arg} is deprecated"):
@@ -132,10 +133,8 @@ def test_deprecated_arg_decorator(
     if "\n" not in (func.__doc__ or ""):
         return
 
-    parser = GoogleDocstring if docstring_style == "google" else NumpyDocstring
-
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
-    sphinx_ext._process_deprecated_args(deprecated_func.__scverse_misc_deprecated_arg__, lines)
+    sphinx_ext._process_deprecated_args(getattr(deprecated_func, ATTR_DEPRECATED_ARG), lines)
     lines = parser(lines).lines()
 
     prefix = f":param {arg}:"

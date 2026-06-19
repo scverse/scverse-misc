@@ -5,6 +5,8 @@ from functools import wraps
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
+from ..constants import ATTR_DEPRECATED_ARG
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -92,9 +94,9 @@ class deprecated_arg:
 
             return func(*args, **kwargs)
 
-        if not hasattr(func, "__scverse_misc_deprecated_arg__"):
-            func.__scverse_misc_deprecated_arg__ = []  # type: ignore[attr-defined]
-        func.__scverse_misc_deprecated_arg__.append(self)  # type: ignore[attr-defined]
-        wrapped.__scverse_misc_deprecated_arg__ = func.__scverse_misc_deprecated_arg__  # type: ignore[attr-defined]
+        args = getattr(func, ATTR_DEPRECATED_ARG, [])
+        args.append(self)
+        setattr(func, ATTR_DEPRECATED_ARG, args)
+        setattr(wrapped, ATTR_DEPRECATED_ARG, args)
 
         return cast(CallableWithDeprecatedArg[P, R], wrapped)
