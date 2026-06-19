@@ -10,7 +10,9 @@ import inspect
 import sys
 import warnings
 from itertools import islice
-from typing import TYPE_CHECKING, Protocol, get_type_hints, overload, runtime_checkable
+from typing import TYPE_CHECKING, NamedTuple, Protocol, get_type_hints, overload, runtime_checkable
+
+from .constants import ATTR_NAMESPACE
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Set
@@ -27,6 +29,9 @@ class ExtensionNamespace(Protocol):
     Protocol's can't enforce that the `__init__` accepts the correct types. See
     `_check_namespace_signature` for that. This is mainly useful for static type
     checking with mypy and IDEs.
+
+    .. seealso::
+       :ref:`example-extension-namespaces`
     """
 
     def __init__(self, instance: object) -> None:
@@ -163,6 +168,14 @@ def _indent_string_lines(string: str, indentation_level: int, skip_lines: int = 
     )
 
 
+class _NSInfo(NamedTuple):
+    name: str
+    """Canonical instance name."""
+
+    cls: type
+    """Namespace Class."""
+
+
 def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
     cls: type, canonical_instance_name: str, decorator_name: str | None = None, docstring_style: str | None = None
 ) -> Callable[[str], Callable[[type[NameSpT]], type[NameSpT]]]:
@@ -181,6 +194,9 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
             is used for run-time checking of constructor signatures of the namespace classes.
         decorator_name: Deprecated and unused.
         docstring_style: Deprecated and unused.
+
+    .. seealso::
+       :ref:`example-extension-namespaces`
     """
     if decorator_name is not None:
         warnings.warn(
@@ -200,7 +216,6 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
     def decorator(name: str) -> Callable[[type[NameSpT]], type[NameSpT]]:
         return _create_namespace(name, cls, reserved_namespaces, canonical_instance_name)
 
-    decorator.__scverse_misc_create_namespace__ = cls  # type: ignore[attr-defined]
-    decorator.__scverse_misc_canonical_instance_name__ = canonical_instance_name  # type: ignore[attr-defined]
+    setattr(decorator, ATTR_NAMESPACE, _NSInfo(canonical_instance_name, cls))
 
     return decorator

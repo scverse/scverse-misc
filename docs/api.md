@@ -1,10 +1,11 @@
 # API
 
 ```{eval-rst}
-.. currentmodule:: scverse_misc
+.. module:: scverse_misc
 .. toctree::
 ```
 
+(extensions)=
 ## Extensions
 
 ```{eval-rst}
@@ -13,7 +14,9 @@
 
     make_register_namespace_decorator
 ```
+
 Types used by the former:
+
 ```{eval-rst}
 .. autosummary::
     :toctree: generated
@@ -21,7 +24,11 @@ Types used by the former:
     ExtensionNamespace
 ```
 
+*Examples:* {ref}`example-extension-namespaces`
+
+(deprecations)=
 ## Deprecations
+
 ```{eval-rst}
 .. autosummary::
    :toctree: generated
@@ -31,6 +38,9 @@ Types used by the former:
    Deprecation
 ```
 
+*Examples:* {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
+
+(settings)=
 ## Settings
 
 ```{eval-rst}
@@ -39,7 +49,28 @@ Types used by the former:
 
    api/settings
 
-+---------------------------+----------------------------------+
-| :class:`Settings` ()      | Base class for package settings. |
-+---------------------------+----------------------------------+
+.. autosummary::
+   :signatures: short
+
+   Settings
+```
+
+*Examples:* {ref}`example-settings-class`
+
+(datasets)=
+## Datasets (`scverse_misc.datasets`)
+
+```{eval-rst}
+.. automodule:: scverse_misc.datasets
+.. autosummary::
+    :toctree: generated
+
+    DatasetEntry
+    FileEntry
+    parse_registry
+    fetch
+    register_loader
+    available_loaders
+    Loader
+    DownloadCB
 ```

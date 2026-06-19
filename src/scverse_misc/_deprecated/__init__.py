@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import inspect
-import sys
 from functools import wraps
-from textwrap import indent
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
-if sys.version_info >= (3, 13):
-    from warnings import deprecated as _deprecated
-else:
-    from typing_extensions import deprecated as _deprecated
+from ..constants import ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -19,12 +14,21 @@ if TYPE_CHECKING:
 __all__ = ["deprecated", "deprecated_arg", "Deprecation"]
 
 
+if TYPE_CHECKING:
+    from .decorator import _deprecated as deprecated
+else:
+    from .decorator import deprecated
+
+
 class Deprecation(str):
     """Utility class storing information on deprecated functionality.
 
     Args:
         version_deprecated: The version of the package where the functionality was deprecated.
         msg: The deprecation message.
+
+    .. seealso::
+       :ref:`example-deprecating-a-function`, :ref:`example-deprecating-a-function-argument`, :ref:`example-settings-class`
     """
 
     version_deprecated: LiteralString
@@ -36,45 +40,6 @@ class Deprecation(str):
         obj = super().__new__(cls, msg)
         obj.version_deprecated = version_deprecated
         return obj
-
-
-def _deprecated_at[F: Callable[..., object]](
-    msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1
-) -> Callable[[F], F]:
-    """Decorator to indicate that a class, function, or overload is deprecated.
-
-    Wraps :func:`warnings.deprecated`. If the scverse_misc Sphinx extension is enabled, the function's documentation will
-    include a deprecation notice.
-
-    Args:
-        msg: The deprecation message.
-        category: The category of the warning that will be emitted at runtime.
-        stacklevel: The stack level of the warning.
-
-    Examples:
-        >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
-        ... def foo(baz):
-        ...     pass
-    """
-
-    def decorate(func: F) -> F:
-        kind = "function" if func.__name__ == func.__qualname__ else "method"
-        warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
-        if len(msg):
-            warnmsg += f". {msg}" if msg.count("\n") == 0 else f":\n{indent(msg, 4 * ' ')}"
-        else:
-            warnmsg += "."
-        newmsg = Deprecation(msg.version_deprecated, warnmsg)
-        newmsg._docmsg = str(msg)
-        return _deprecated(newmsg, category=category, stacklevel=stacklevel)(func)
-
-    return decorate
-
-
-if TYPE_CHECKING:
-    deprecated = _deprecated
-else:
-    deprecated = _deprecated_at
 
 
 class CallableWithDeprecatedArg[**P, R](Protocol):
@@ -100,6 +65,9 @@ class deprecated_arg:
         >>> @deprecated_arg("bar", Deprecation("0.2", "The functionality has moved to the baz() function."))
         ... def foo(baz, bar=1):
         ...     pass
+
+    .. seealso::
+       :ref:`example-deprecating-a-function-argument`
     """
 
     def __init__(
@@ -132,9 +100,9 @@ class deprecated_arg:
 
             return func(*args, **kwargs)
 
-        if not hasattr(func, "__scverse_misc_deprecated_arg__"):
-            func.__scverse_misc_deprecated_arg__ = []  # type: ignore[attr-defined]
-        func.__scverse_misc_deprecated_arg__.append(self)  # type: ignore[attr-defined]
-        wrapped.__scverse_misc_deprecated_arg__ = func.__scverse_misc_deprecated_arg__  # type: ignore[attr-defined]
+        args = getattr(func, ATTR_DEPRECATED_ARG, [])
+        args.append(self)
+        setattr(func, ATTR_DEPRECATED_ARG, args)
+        setattr(wrapped, ATTR_DEPRECATED_ARG, args)
 
         return cast(CallableWithDeprecatedArg[P, R], wrapped)

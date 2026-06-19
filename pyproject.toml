@@ -22,12 +22,15 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "anndata",
   # for debug logging (referenced from the issue template)
   "session-info2",
   "typing-extensions; python_version<'3.13'",
 ]
 optional-dependencies.rich = [ "rich" ]
+optional-dependencies.datasets = [ "pooch", "pyyaml", "tqdm" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
+optional-dependencies.spatialdata = [ "spatialdata" ]
 optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13", "sphinx>=9" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
@@ -39,16 +42,24 @@ dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-test = [ "coverage>=7.10", "numpy", "pytest", "scverse-misc[settings,sphinx]", "sphinx", "sphinx-autodoc-typehints" ]
+test = [
+  "coverage>=7.10",
+  "numpy",
+  "pytest",
+  "scverse-misc[datasets,settings,sphinx]",
+  "sphinx",
+  "sphinx-autodoc-typehints"
+]
 doc = [
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
   "pandas",
-  "scverse-misc[settings,sphinx]",
+  "scverse-misc[datasets,settings,sphinx]",
   "sphinx>=8.1",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",
+  "sphinx-codeautolink",
   "sphinx-copybutton",
   "sphinx-design",
   "sphinxcontrib-bibtex>=1",

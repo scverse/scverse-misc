@@ -10,13 +10,16 @@ import pytest
 from pydantic import Field, ValidationError
 from pydantic_settings import SettingsConfigDict
 
-from scverse_misc import Settings
+from scverse_misc import Deprecation, Settings, deprecated
 
 
 class DummySettings(Settings):
     field_bool: bool = False
     field_int: int = 42
     field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
+    field_deprecated: Annotated[
+        float, Field(deprecated=deprecated(Deprecation("0.42", "This setting does not do anything.")))
+    ] = 3.14
 
 
 def test_defaults_override() -> None:
@@ -105,7 +108,7 @@ def test_reset_signature() -> None:
     sig = inspect.signature(settings.reset)
     names_param = sig.parameters["names"]
     assert get_origin(names_param.annotation) is Literal
-    assert get_args(names_param.annotation) == ("field_bool", "field_int", "field_int_range")
+    assert get_args(names_param.annotation) == ("field_bool", "field_int", "field_int_range", "field_deprecated")
 
 
 @pytest.mark.skipif(sys.version_info < (3, 14), reason="requires annotationlib")
@@ -117,6 +120,14 @@ def test_reset_annotations() -> None:
     settings = DummySettings()
 
     assert annotationlib.get_annotations(settings.reset) == {
-        "names": Literal["field_bool", "field_int", "field_int_range"],
-        "return": AbstractContextManager[frozenset[Literal["field_bool", "field_int", "field_int_range"]]],
+        "names": Literal["field_bool", "field_int", "field_int_range", "field_deprecated"],
+        "return": AbstractContextManager[
+            frozenset[Literal["field_bool", "field_int", "field_int_range", "field_deprecated"]]
+        ],
     }
+
+
+def test_deprecation() -> None:
+    settings = DummySettings()
+    with pytest.warns(DeprecationWarning, match="does not do anything"):
+        settings.field_deprecated  # noqa: B018

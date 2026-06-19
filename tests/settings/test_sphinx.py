@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import inspect
-from typing import Annotated, Literal
+import sys
+from typing import Annotated
+
+if sys.version_info >= (3, 13):
+    from warnings import deprecated as stdlib_deprecated
+else:
+    from typing_extensions import deprecated as stdlib_deprecated
 
 import pytest
 from pydantic import Field
@@ -10,7 +16,7 @@ from sphinx.application import Sphinx
 from sphinx.ext.autodoc import Options as AutodocOptions
 from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
 
-from scverse_misc import Settings
+from scverse_misc import Deprecation, Settings, deprecated
 from scverse_misc.sphinx_ext import _process_docstring
 
 
@@ -22,11 +28,6 @@ class DummySettings(Settings):
 
     field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
     """Integer range field."""
-
-
-@pytest.fixture(scope="session")
-def parser(docstring_style: Literal["google", "numpy"]) -> type[GoogleDocstring | NumpyDocstring]:
-    return GoogleDocstring if docstring_style == "google" else NumpyDocstring
 
 
 def test_body(app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring]) -> None:
@@ -112,3 +113,43 @@ def test_annotation_format(
     lines = lines[lines.index(f".. attribute:: settings.{attr}") + 1 :]
 
     assert lines[0] == f"   :type: {expected}"
+
+
+@pytest.mark.parametrize(
+    ("deprecation", "expected_version", "expected_msg"),
+    (
+        (
+            deprecated(Deprecation("0.4.2", "This setting does not do anything.")),
+            "0.4.2",
+            "This setting does not do anything.",
+        ),
+        (
+            stdlib_deprecated(Deprecation("0.4.2", "This setting does not do anything")),
+            "0.4.2",
+            "This setting does not do anything",
+        ),
+        (stdlib_deprecated("This setting does not do anything"), "???", "This setting does not do anything"),
+        ("This setting does not do anything", "???", "This setting does not do anything"),
+        (True, "???", ""),
+    ),
+)
+def test_deprecation(
+    app: Sphinx,
+    parser: type[GoogleDocstring | NumpyDocstring],
+    deprecation: deprecated | str | bool,
+    expected_version: str,
+    expected_msg: str,
+) -> None:
+    class S(Settings):
+        field_deprecated: Annotated[float, Field(deprecated=deprecation)] = 3.14
+        """A deprecated setting."""
+
+    settings = S()
+
+    lines = (inspect.getdoc(settings) or "").splitlines()
+    _process_docstring(app, "data", "tests.settings", settings, AutodocOptions(), lines)
+    lines = parser(lines).lines()
+    lines = lines[lines.index(".. attribute:: settings.field_deprecated") + 4 :]
+
+    assert lines[0] == f"   .. version-deprecated:: {expected_version}"
+    assert lines[1] == (f"      {expected_msg}" if len(expected_msg) > 0 else "")

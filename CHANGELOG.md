@@ -8,15 +8,26 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.0.9] (unreleased)
+## [0.0.9]
 
 ### Added
 
 - A Sphinx extension to take care of documentation. This moves docstring processing from import time to documentation building time.
+- A reusable `datasets` subpackage (behind the `datasets` extra): typed `DatasetEntry`/
+  `FileEntry` + `parse_registry` (YAML), a thin pooch-based `fetch` (SHA-256 verification,
+  retries, archive processors), and a pluggable `type -> loader` registry
+  (`register_loader`) so packages can share dataset-download infrastructure. Ships built-in
+  `anndata` and `spatialdata` loaders (the latter behind the `spatialdata` extra); other
+  types are consumer-registered.
+- `anndata` is now a core dependency.
 
 ### Changed
 
 - Docstrings are no longer generated or modified at import time.
+
+### Fixed
+
+- Marking a setting as `Field(deprecated=...)` will show a deprecation notice in the documentaiton.
 
 ## [0.0.8]
 
