@@ -5,8 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][],
 and this project adheres to [Semantic Versioning][].
 
-[keep a changelog]: https://keepachangelog.com/en/1.1.0/
-[semantic versioning]: https://semver.org/spec/v2.0.0.html
+[keep a changelog]: https://keepachangelog.com/
+[semantic versioning]: https://semver.org/spec/
+
+## [Unreleased]
 
 ## [0.0.9]
 
@@ -88,6 +90,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.0.9...HEAD
 [0.0.9]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.9
 [0.0.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.8
 [0.0.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.7
