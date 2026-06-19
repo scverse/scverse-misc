@@ -58,6 +58,7 @@ doc = [
   "sphinx>=8.1",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",
+  "sphinx-codeautolink",
   "sphinx-copybutton",
   "sphinx-design",
   "sphinxcontrib-bibtex>=1",

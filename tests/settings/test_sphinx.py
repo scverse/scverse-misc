@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import Annotated, Literal
+from typing import Annotated
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as stdlib_deprecated
@@ -28,11 +28,6 @@ class DummySettings(Settings):
 
     field_int_range: Annotated[int, Field(ge=0, le=4)] = 1
     """Integer range field."""
-
-
-@pytest.fixture(scope="session")
-def parser(docstring_style: Literal["google", "numpy"]) -> type[GoogleDocstring | NumpyDocstring]:
-    return GoogleDocstring if docstring_style == "google" else NumpyDocstring
 
 
 def test_body(app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring]) -> None:

@@ -62,6 +62,7 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinxcontrib.katex",
     "sphinx_autodoc_typehints",
+    "sphinx_codeautolink",
     "sphinx_design",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinxext.opengraph",

@@ -15,13 +15,13 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 
 # Examples
 
+(example-deprecating-a-function)=
 ## Deprecating a function
 
 ### source
 
-```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/deprecated_decorator.py
-   :language: python
+```{literalinclude} sphinx_ext_examples/deprecated_decorator.py
+:language: python
 ```
 
 ### rendered
@@ -30,13 +30,13 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 .. autofunction:: deprecated_decorator.foo
 ```
 
+(example-deprecating-a-function-argument)=
 ## Deprecating a function argument
 
 ### source
 
-```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/deprecated_arg.py
-   :language: python
+```{literalinclude} sphinx_ext_examples/deprecated_arg.py
+:language: python
 ```
 
 ### rendered
@@ -45,13 +45,13 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 .. autofunction:: deprecated_arg.foo
 ```
 
+(example-settings-class)=
 ## Settings class
 
 ### source
 
-```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/package.py
-   :language: python
+```{literalinclude} sphinx_ext_examples/package.py
+:language: python
 ```
 
 ### rendered
@@ -61,4 +61,20 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 
 .. autofunction:: package.settings.override
 .. autofunction:: package.settings.reset
+```
+
+(example-extension-namespaces)=
+## Extension namespaces
+
+### source
+
+```{literalinclude} sphinx_ext_examples/extension.py
+:language: python
+```
+
+### rendered
+
+```{eval-rst}
+.. autoclass:: extension.DummyClass
+.. autodecorator:: extension.register_namespace
 ```

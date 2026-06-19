@@ -16,7 +16,9 @@ else:
 from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
 
 from .._deprecated import Deprecation, deprecated_arg
+from .._extensions import _NSInfo
 from .._utils import get_packagename, type_str
+from ..constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG, ATTR_NAMESPACE
 
 try:
     from pydantic_core import PydanticUndefined
@@ -48,27 +50,18 @@ def _process_docstring(
     app: Sphinx, objtype: _AutodocObjType, name: str, obj: object, options: AutodocOptions, lines: list[str]
 ) -> None:
     match objtype:
-        case "function" if hasattr(obj, "__scverse_misc_create_namespace__") and hasattr(
-            obj, "__scverse_misc_canonical_instance_name__"
-        ):
-            assert isinstance(obj.__scverse_misc_create_namespace__, type)
-            assert isinstance(obj.__scverse_misc_canonical_instance_name__, str)
-            _process_namespace_decorator(
-                app, name, obj.__scverse_misc_create_namespace__, obj.__scverse_misc_canonical_instance_name__, lines
-            )
+        case "function" | "decorator" if hasattr(obj, ATTR_NAMESPACE):
+            assert isinstance(getattr(obj, ATTR_NAMESPACE), _NSInfo)
+            _process_namespace_decorator(app, name, getattr(obj, ATTR_NAMESPACE), lines)
         case "method" | "function" if isinstance(obj, MethodType) and isinstance(obj.__self__, Settings):
             _process_settings_method(app, obj, lines)
-        case "function" | "method" | "class":
-            if hasattr(obj, "__deprecated__") and isinstance(obj.__deprecated__, Deprecation):
-                _process_deprecated_function(app, obj.__deprecated__, lines)
-            if (args := getattr(obj, "__scverse_misc_deprecated_arg__", None)) is not None:
+        case "method" | "function" | "property" | "class" | "exception":
+            if isinstance(obj, property):
+                obj = obj.fget
+            if hasattr(obj, ATTR_DEPRECATED) and isinstance(msg := getattr(obj, ATTR_DEPRECATED, None), Deprecation):
+                _process_deprecated_function(app, msg, lines)
+            if (args := getattr(obj, ATTR_DEPRECATED_ARG, None)) is not None:
                 _process_deprecated_args(args, lines)
-        case "property" if (
-            hasattr(obj, "fget")
-            and hasattr(obj.fget, "__deprecated__")
-            and isinstance(obj.fget.__deprecated__, Deprecation)
-        ):
-            _process_deprecated_function(app, obj.fget.__deprecated__, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
 
@@ -270,20 +263,18 @@ False
 """
 
 
-def _process_namespace_decorator(
-    app: Sphinx, name: str, cls: type, canonical_instance_name: str, lines: list[str]
-) -> None:
-    qualname = f"{cls.__module__}.{cls.__name__}"
+def _process_namespace_decorator(app: Sphinx, name: str, info: _NSInfo, lines: list[str]) -> None:
+    qualname = f"{info.cls.__module__}.{info.cls.__name__}"
     model = Docstring(
         summary=_namespace_decorator_summary_template.format(qualname=qualname),
-        extended_summary=_namespace_decorator_extended_summary_template.format(name=cls.__name__),
+        extended_summary=_namespace_decorator_extended_summary_template.format(name=info.cls.__name__),
         sections=[
             Section(
                 SectionKind.PARAMETERS,
                 parameters=[
                     Parameter(
                         names=["name"],
-                        description=_namespace_decorator_argument_description_template.format(name=cls.__name__),
+                        description=_namespace_decorator_argument_description_template.format(name=info.cls.__name__),
                     )
                 ],
             ),
@@ -294,15 +285,13 @@ def _process_namespace_decorator(
             Section(
                 SectionKind.NOTES,
                 body=_namespace_decorator_notes_template.format(
-                    qualname=qualname, name=cls.__name__, canonical_instance_name=canonical_instance_name
+                    qualname=qualname, name=info.cls.__name__, canonical_instance_name=info.name
                 ),
             ),
             Section(
                 SectionKind.EXAMPLES,
                 body=_namespace_decorator_examples_template.format(
-                    decorator_name=_get_objname(name),
-                    name=cls.__name__,
-                    canonical_instance_name=canonical_instance_name,
+                    decorator_name=_get_objname(name), name=info.cls.__name__, canonical_instance_name=info.name
                 ),
             ),
         ],

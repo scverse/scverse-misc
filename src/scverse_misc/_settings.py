@@ -45,6 +45,9 @@ class Settings(BaseSettings):
         ...
         ...
         ... settings = MySettings()
+
+    .. seealso::
+       :ref:`example-settings-class`
     '''
 
     @classmethod

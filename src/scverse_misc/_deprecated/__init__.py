@@ -5,6 +5,8 @@ from functools import wraps
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
+from ..constants import ATTR_DEPRECATED_ARG
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -24,6 +26,9 @@ class Deprecation(str):
     Args:
         version_deprecated: The version of the package where the functionality was deprecated.
         msg: The deprecation message.
+
+    .. seealso::
+       :ref:`example-deprecating-a-function`, :ref:`example-deprecating-a-function-argument`, :ref:`example-settings-class`
     """
 
     version_deprecated: LiteralString
@@ -60,6 +65,9 @@ class deprecated_arg:
         >>> @deprecated_arg("bar", Deprecation("0.2", "The functionality has moved to the baz() function."))
         ... def foo(baz, bar=1):
         ...     pass
+
+    .. seealso::
+       :ref:`example-deprecating-a-function-argument`
     """
 
     def __init__(
@@ -92,9 +100,9 @@ class deprecated_arg:
 
             return func(*args, **kwargs)
 
-        if not hasattr(func, "__scverse_misc_deprecated_arg__"):
-            func.__scverse_misc_deprecated_arg__ = []  # type: ignore[attr-defined]
-        func.__scverse_misc_deprecated_arg__.append(self)  # type: ignore[attr-defined]
-        wrapped.__scverse_misc_deprecated_arg__ = func.__scverse_misc_deprecated_arg__  # type: ignore[attr-defined]
+        args = getattr(func, ATTR_DEPRECATED_ARG, [])
+        args.append(self)
+        setattr(func, ATTR_DEPRECATED_ARG, args)
+        setattr(wrapped, ATTR_DEPRECATED_ARG, args)
 
         return cast(CallableWithDeprecatedArg[P, R], wrapped)
