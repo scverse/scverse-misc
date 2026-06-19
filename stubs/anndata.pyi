@@ -1,0 +1,6 @@
+import os
+from typing import Any
+
+class AnnData: ...
+
+def read_h5ad(path: str | os.PathLike[str], **kwargs: Any) -> AnnData: ...  # noqa: ANN401

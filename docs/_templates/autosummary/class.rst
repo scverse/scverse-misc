@@ -7,55 +7,49 @@
 .. autoclass:: {{ objname }}
 
 {% block attributes %}
-{% if attributes %}
+{% for item in attributes %}
+{% if loop.length != 1 %}
+{% if loop.first %}
 Attributes table
 ~~~~~~~~~~~~~~~~
 
 .. autosummary::
-{% for item in attributes %}
-    ~{{ name }}.{{ item }}
-{%- endfor %}
 {% endif %}
+    ~{{ name }}.{{ item }}
+{% endif %}
+{%- endfor %}
 {% endblock %}
 
 {% block methods %}
-{% if methods %}
+{% for item in all_methods if item == '__call__' or not item.startswith('__') %}
+{% if loop.length != 1 %}
+{% if loop.first %}
 Methods table
 ~~~~~~~~~~~~~
 
 .. autosummary::
-{% for item in methods %}
-    {%- if item != '__init__' %}
-    ~{{ name }}.{{ item }}
-    {%- endif -%}
-{%- endfor %}
 {% endif %}
+    ~{{ name }}.{{ item }}
+{% endif %}
+{%- endfor %}
 {% endblock %}
 
 {% block attributes_documentation %}
-{% if attributes %}
+{% for item in attributes %}
+{% if loop.first %}
 Attributes
 ~~~~~~~~~~
-
-{% for item in attributes %}
-
+{% endif %}
 .. autoattribute:: {{ [objname, item] | join(".") }}
 {%- endfor %}
-
-{% endif %}
 {% endblock %}
 
 {% block methods_documentation %}
-{% if methods %}
+{% for item in all_methods if item == '__call__' or not item.startswith('__') %}
+{% if loop.first %}
 Methods
 ~~~~~~~
-
-{% for item in methods %}
-{%- if item != '__init__' %}
-
-.. automethod:: {{ [objname, item] | join(".") }}
-{%- endif -%}
-{%- endfor %}
-
 {% endif %}
+.. automethod:: {{ [objname, item] | join(".") }}
+{%- endfor %}
 {% endblock %}

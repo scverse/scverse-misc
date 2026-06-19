@@ -1,0 +1,132 @@
+"""Download + load a dataset: a thin ``fetch`` over pooch + a pluggable ``type -> loader`` registry.
+
+A loader is a callable ``(entry, target_dir, download, **kwargs) -> object`` where ``download``
+is ``(FileEntry, dest=None, processor=None) -> path`` (pooch under the hood: hashing, caching,
+retries, and archive processors). ``anndata`` and ``spatialdata`` loaders ship built in.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Protocol, cast, overload
+
+if TYPE_CHECKING:
+    from ._registry import DatasetEntry, FileEntry
+
+    if TYPE_CHECKING:  # sphinx tries to import the above TYPE_CHECKING block
+        from anndata import AnnData
+        from pooch.typing import Processor
+        from spatialdata import SpatialData
+    else:
+        from typing import TypeAliasType
+
+        # TypeAliasType.__module__ is readonly, so we have to be a bit creative.
+        Processor = eval('A("Processor", object)', globals=dict(__name__="pooch.typing", A=TypeAliasType))
+
+
+__all__ = ["register_loader", "available_loaders", "fetch", "Loader", "DownloadCB"]
+
+
+class Loader[T](Protocol):
+    """Function that can be annotated by :func:`register_loader`."""
+
+    def __call__(self, entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> T:
+        """Call `download` (see :class:`DownloadCB`) and load ``entry``.
+
+        Args:
+            entry: File to download.
+            target: Loaded when it exists, otherwise it will be created.
+            download: Called when `target` doesn’t exist.
+            kwargs: Passed to `download`.
+        """
+
+
+class DownloadCB(Protocol):
+    """Callback passed as `download` to a :class:`Loader`."""
+
+    def __call__(self, file: FileEntry, /, *, dest: Path | None = None, processor: Processor | None = None) -> str:
+        """Download ``file`` if necessary.
+
+        Args:
+            file: File to download.
+            dest: Optional target directory, defaults to :func:`fetch`’s `cache_dir / entry.type`.
+            processor: Optional archive processor.
+        """
+
+
+_LOADERS: dict[str, Loader[object]] = {}
+
+
+@overload
+def register_loader[T](type_name: str) -> Callable[[Loader[T]], Loader[T]]: ...
+@overload
+def register_loader[T](type_name: str, loader: Loader[T]) -> Loader[T]: ...
+def register_loader[T](type_name: str, loader: Loader[T] | None = None) -> Callable[[Loader[T]], Loader[T]] | Loader[T]:
+    """Register a :class:`Loader` for a dataset ``type`` (decorator or direct call)."""
+
+    def deco(fn: Loader[T]) -> Loader[T]:
+        _LOADERS[type_name] = fn
+        return fn
+
+    return deco if loader is None else deco(loader)
+
+
+def available_loaders() -> list[str]:
+    """Return the names of all registered loader types."""
+    return sorted(_LOADERS)
+
+
+def fetch[T](
+    entry: DatasetEntry, cache_dir: str | Path, *, base_url: str | None = None, retries: int = 3, **kwargs: object
+) -> T:  # type: ignore[type-var]
+    """Download (if needed) and load ``entry``, dispatching to the loader registered for ``entry.type``.
+
+    Files are cached under ``cache_dir / entry.type``. ``kwargs`` are passed to the loader.
+    """
+    target = Path(cache_dir) / entry.type
+
+    def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:
+        import pooch
+
+        out = dest or target
+        out.mkdir(parents=True, exist_ok=True)
+        pup = pooch.create(
+            path=str(out),
+            base_url="",
+            registry={file.name: f"sha256:{file.sha256}" if file.sha256 else None},
+            urls={file.name: file.resolve_url(base_url)},
+            retry_if_failed=retries,
+        )
+        return pup.fetch(file.name, processor=processor, progressbar=True)
+
+    if entry.type not in _LOADERS:
+        raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")
+    return cast("Loader[T]", _LOADERS[entry.type])(entry, target, download, **kwargs)
+
+
+@register_loader("anndata")
+def _load_anndata(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> AnnData:
+    """Built-in loader: download a single ``.h5ad`` and read it with :func:`anndata.read_h5ad`."""
+    import anndata
+
+    return anndata.read_h5ad(download(entry.file(suffix=".h5ad")), **cast("dict[str, Any]", kwargs))
+
+
+@register_loader("spatialdata")
+def _load_spatialdata(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kwargs: object) -> SpatialData:
+    """Built-in loader: download a ``.zip``, unzip it (via pooch) and read the single ``.zarr`` store inside.
+
+    Extracts into a per-dataset directory so the ``.zarr`` can be found by glob (its name need not match
+    the registry key) without colliding with other spatialdata datasets cached under the same ``target``.
+    Needs the ``spatialdata`` extra.
+    """
+    import pooch
+    import spatialdata as sd
+
+    dest = target / entry.name
+    download(entry.file(suffix=".zip"), dest=dest, processor=pooch.Unzip(extract_dir="."))
+    zarrs = sorted(dest.glob("*.zarr"))
+    if len(zarrs) != 1:
+        raise RuntimeError(f"Expected exactly one .zarr extracted under {dest}, found {len(zarrs)}: {zarrs}.")
+    return sd.read_zarr(zarrs[0], **cast("dict[str, Any]", kwargs))

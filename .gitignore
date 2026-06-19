@@ -24,3 +24,6 @@ __pycache__/
 # docs
 /docs/generated/
 /docs/_build/
+
+# lockfiles (library: not committed)
+/uv.lock
