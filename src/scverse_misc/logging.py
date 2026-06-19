@@ -30,7 +30,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Literal, overload
 
-__all__ = ["Rule", "Elapsed", "Deep", "config", "get_logger"]
+__all__ = ["Rule", "Elapsed", "Deep", "TimedLogger", "config", "get_logger"]
 
 _ROOT = "scverse"
 HINT = (logging.INFO + logging.DEBUG) // 2  # 15; used by the timed logger
@@ -109,48 +109,58 @@ class _Config:
     """Central logging configuration; the singleton instance is :data:`config`."""
 
     def __init__(self) -> None:
-        self._parent = logging.getLogger(_ROOT)
-        self._parent.setLevel(logging.WARNING)
-        self._parent.propagate = False  # one handler here; don't double-log via root
+        self._root = logging.getLogger(_ROOT)
+        self._root.setLevel(logging.WARNING)
+        self._root.propagate = False  # one handler here; don't double-log via root
+        self._rich: bool | None = None  # None = auto-detect rich
         self._rules: list[Rule] = [Elapsed(), Deep()]  # universal defaults; order matters
-        self._install(_make_handler(_rich_available()))
+        self._install(_make_handler(self._use_rich()))
 
     def _install(self, handler: logging.Handler) -> None:
         for r in self._rules:
             handler.addFilter(r)
-        self._parent.addHandler(handler)
+        self._root.addHandler(handler)
+
+    def _use_rich(self) -> bool:
+        return _rich_available() if self._rich is None else self._rich
 
     @property
     def verbosity(self) -> str | int:
         """Central level for all scverse loggers. Set with a name (``"info"``) or int."""
-        return logging.getLevelName(self._parent.level)
+        return logging.getLevelName(self._root.level)
 
     @verbosity.setter
     def verbosity(self, level: str | int) -> None:
-        self._parent.setLevel(level.upper() if isinstance(level, str) else level)
+        self._root.setLevel(level.upper() if isinstance(level, str) else level)
 
-    def use_rich(self, enabled: bool = True) -> None:
-        """Force the rich (``True``) or plain (``False``) handler."""
-        for h in list(self._parent.handlers):
-            self._parent.removeHandler(h)
-        self._install(_make_handler(enabled))
+    @property
+    def rich(self) -> bool:
+        """Whether rich rendering is active. Set ``True``/``False`` to force, ``None`` to auto-detect."""
+        return self._use_rich()
+
+    @rich.setter
+    def rich(self, enabled: bool | None) -> None:
+        self._rich = enabled
+        for h in list(self._root.handlers):
+            self._root.removeHandler(h)
+        self._install(_make_handler(self._use_rich()))
 
     def add_rule(self, rule: Rule) -> None:
         self._rules.append(rule)
-        for h in self._parent.handlers:
+        for h in self._root.handlers:
             h.addFilter(rule)
 
     def remove_rule(self, rule: Rule) -> None:
         if rule in self._rules:
             self._rules.remove(rule)
-        for h in self._parent.handlers:
+        for h in self._root.handlers:
             h.removeFilter(rule)
 
 
 config = _Config()
 
 
-class _TimedLogger:
+class TimedLogger:
     """Opt-in scanpy-style wrapper: ``time=``/``deep=`` keywords + a ``datetime`` return.
 
     Sets ``time_passed``/``deep`` on the record (rendered by the :class:`Elapsed`
@@ -186,34 +196,40 @@ class _TimedLogger:
         return now
 
     def debug(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        """Log at DEBUG; return the current time (see :class:`TimedLogger`)."""
         return self._emit(logging.DEBUG, msg, *a, time=time, deep=deep)
 
     def hint(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        """Log at HINT; return the current time (see :class:`TimedLogger`)."""
         return self._emit(HINT, msg, *a, time=time, deep=deep)
 
     def info(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        """Log at INFO; return the current time (see :class:`TimedLogger`)."""
         return self._emit(logging.INFO, msg, *a, time=time, deep=deep)
 
     def warning(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        """Log at WARNING; return the current time (see :class:`TimedLogger`)."""
         return self._emit(logging.WARNING, msg, *a, time=time, deep=deep)
 
     def error(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        """Log at ERROR; return the current time (see :class:`TimedLogger`)."""
         return self._emit(logging.ERROR, msg, *a, time=time, deep=deep)
 
     def critical(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+        """Log at CRITICAL; return the current time (see :class:`TimedLogger`)."""
         return self._emit(logging.CRITICAL, msg, *a, time=time, deep=deep)
 
 
 @overload
 def get_logger(name: str, *, timed: Literal[False] = False) -> logging.Logger: ...
 @overload
-def get_logger(name: str, *, timed: Literal[True]) -> _TimedLogger: ...
-def get_logger(name: str, *, timed: bool = False) -> logging.Logger | _TimedLogger:
+def get_logger(name: str, *, timed: Literal[True]) -> TimedLogger: ...
+def get_logger(name: str, *, timed: bool = False) -> logging.Logger | TimedLogger:
     """Return the ``scverse.<name>`` logger a package should use.
 
     ``timed=False`` (default) returns a plain :class:`logging.Logger`.
-    ``timed=True`` returns a :class:`_TimedLogger` with scanpy-style ``time=`` /
+    ``timed=True`` returns a :class:`TimedLogger` with scanpy-style ``time=`` /
     ``deep=`` keywords and a ``datetime`` return.
     """
     logger = logging.getLogger(name if name.startswith(f"{_ROOT}.") else f"{_ROOT}.{name}")
-    return _TimedLogger(logger) if timed else logger
+    return TimedLogger(logger) if timed else logger

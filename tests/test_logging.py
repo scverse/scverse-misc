@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from scverse_misc import logging as mod
-from scverse_misc.logging import Deep, Elapsed, Rule, config, get_logger
+from scverse_misc.logging import Deep, Elapsed, Rule, TimedLogger, config, get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 @pytest.fixture
 def sink() -> Generator[io.StringIO, None, None]:
     """Force the plain handler, capture its output, and restore global state after."""
-    old_level = config._parent.level
+    old_level = config._root.level
     old_rules = list(config._rules)
-    config.use_rich(False)
-    handler = config._parent.handlers[0]
+    config.rich = False
+    handler = config._root.handlers[0]
     assert isinstance(handler, logging.StreamHandler)
     buf = io.StringIO()
     handler.setStream(buf)
@@ -32,7 +32,7 @@ def sink() -> Generator[io.StringIO, None, None]:
         for rule in list(config._rules):
             if rule not in old_rules:
                 config.remove_rule(rule)
-        config._parent.setLevel(old_level)
+        config._root.setLevel(old_level)
 
 
 def test_get_logger_plain_naming() -> None:
@@ -48,6 +48,7 @@ def test_get_logger_does_not_double_prefix() -> None:
 
 def test_timed_logger_returns_datetime(sink: io.StringIO) -> None:
     log = get_logger("selftest", timed=True)
+    assert isinstance(log, TimedLogger)
     t = log.info("start")
     assert isinstance(t, datetime)
 
@@ -155,17 +156,19 @@ def test_all_level_methods_emit_and_return_datetime(sink: io.StringIO) -> None:
 
 def test_timed_logger_delegates_unknown_attrs() -> None:
     log = get_logger("selftest", timed=True)
-    # name / getEffectiveLevel aren't defined on _TimedLogger -> __getattr__ delegates
+    # name / getEffectiveLevel aren't defined on TimedLogger -> __getattr__ delegates
     assert log.name == "scverse.selftest"
     assert log.getEffectiveLevel() == logging.getLogger("scverse.selftest").getEffectiveLevel()
 
 
-def test_use_rich_installs_rich_handler() -> None:
+def test_rich_property_installs_rich_handler() -> None:
     pytest.importorskip("rich")
     from rich.logging import RichHandler
 
     try:
-        config.use_rich(True)
-        assert isinstance(config._parent.handlers[0], RichHandler)
+        config.rich = True
+        assert isinstance(config._root.handlers[0], RichHandler)
+        assert config.rich is True
     finally:
-        config.use_rich(False)
+        config.rich = False
+        assert config.rich is False
