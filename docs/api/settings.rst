@@ -5,5 +5,7 @@ scverse\_misc.Settings
 
 .. autoclass:: Settings
 
+    .. rubric:: Methods
+
     .. automethod:: override
     .. automethod:: reset

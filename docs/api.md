@@ -21,6 +21,8 @@ Types used by the former:
     ExtensionNamespace
 ```
 
+*Examples:* {ref}`example-extension-namespaces`
+
 ## Deprecations
 ```{eval-rst}
 .. autosummary::
@@ -30,6 +32,8 @@ Types used by the former:
    deprecated_arg
    Deprecation
 ```
+
+*Examples:* {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
 
 ## Settings
 
@@ -43,3 +47,5 @@ Types used by the former:
 | :class:`Settings` ()      | Base class for package settings. |
 +---------------------------+----------------------------------+
 ```
+
+*Examples:* {ref}`example-settings-class`

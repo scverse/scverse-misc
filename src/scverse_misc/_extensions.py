@@ -29,6 +29,9 @@ class ExtensionNamespace(Protocol):
     Protocol's can't enforce that the `__init__` accepts the correct types. See
     `_check_namespace_signature` for that. This is mainly useful for static type
     checking with mypy and IDEs.
+
+    .. seealso::
+       :ref:`example-extension-namespaces`
     """
 
     def __init__(self, instance: object) -> None:
@@ -191,6 +194,9 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
             is used for run-time checking of constructor signatures of the namespace classes.
         decorator_name: Deprecated and unused.
         docstring_style: Deprecated and unused.
+
+    .. seealso::
+       :ref:`example-extension-namespaces`
     """
     if decorator_name is not None:
         warnings.warn(

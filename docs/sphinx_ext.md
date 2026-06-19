@@ -15,13 +15,15 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 
 # Examples
 
+(example-deprecating-a-function)=
 ## Deprecating a function
+
+*API:* {class}`~scverse_misc.deprecated`, {class}`~scverse_misc.Deprecation`
 
 ### source
 
-```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/deprecated_decorator.py
-   :language: python
+```{literalinclude} sphinx_ext_examples/deprecated_decorator.py
+:language: python
 ```
 
 ### rendered
@@ -30,13 +32,15 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 .. autofunction:: deprecated_decorator.foo
 ```
 
+(example-deprecating-a-function-argument)=
 ## Deprecating a function argument
+
+*API:* {class}`~scverse_misc.deprecated_arg`, {class}`~scverse_misc.Deprecation`
 
 ### source
 
-```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/deprecated_arg.py
-   :language: python
+```{literalinclude} sphinx_ext_examples/deprecated_arg.py
+:language: python
 ```
 
 ### rendered
@@ -45,13 +49,15 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 .. autofunction:: deprecated_arg.foo
 ```
 
+(example-settings-class)=
 ## Settings class
+
+*API:* {class}`~scverse_misc.Settings`, {class}`~scverse_misc.deprecated`, {class}`~scverse_misc.Deprecation`
 
 ### source
 
-```{eval-rst}
-.. literalinclude:: sphinx_ext_examples/package.py
-   :language: python
+```{literalinclude} sphinx_ext_examples/package.py
+:language: python
 ```
 
 ### rendered
@@ -61,4 +67,22 @@ The `scverse_misc.sphinx_ext` extension must be listed before `sphinx.ext.napole
 
 .. autofunction:: package.settings.override
 .. autofunction:: package.settings.reset
+```
+
+(example-extension-namespaces)=
+## Extension namespaces
+
+*API:* {func}`~scverse_misc.make_register_namespace_decorator`, {class}`~scverse_misc.ExtensionNamespace`
+
+### source
+
+```{literalinclude} sphinx_ext_examples/extension.py
+:language: python
+```
+
+### rendered
+
+```{eval-rst}
+.. autoclass:: extension.DummyClass
+.. autodecorator:: extension.register_namespace
 ```

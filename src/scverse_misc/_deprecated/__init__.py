@@ -26,6 +26,9 @@ class Deprecation(str):
     Args:
         version_deprecated: The version of the package where the functionality was deprecated.
         msg: The deprecation message.
+
+    .. seealso::
+       :ref:`example-deprecating-a-function`, :ref:`example-deprecating-a-function-argument`, :ref:`example-settings-class`
     """
 
     version_deprecated: LiteralString
@@ -62,6 +65,9 @@ class deprecated_arg:
         >>> @deprecated_arg("bar", Deprecation("0.2", "The functionality has moved to the baz() function."))
         ... def foo(baz, bar=1):
         ...     pass
+
+    .. seealso::
+       :ref:`example-deprecating-a-function-argument`
     """
 
     def __init__(
