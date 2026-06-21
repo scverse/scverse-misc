@@ -1,3 +1,3 @@
 import pytest
 
-pytest.importorskip("scverse_misc.settings")
+pytest.importorskip("scverse_misc._settings")
