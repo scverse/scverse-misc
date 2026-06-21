@@ -4,9 +4,9 @@ import inspect
 from typing import TYPE_CHECKING
 
 import pytest
-from sphinx.ext.autodoc import Options as AutodocOptions
 
 pytest.importorskip("scverse_misc.sphinx_ext")
+from sphinx.ext.autodoc import Options as AutodocOptions
 
 from scverse_misc import make_register_namespace_decorator
 from scverse_misc.sphinx_ext import _process_docstring

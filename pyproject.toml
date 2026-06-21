@@ -40,7 +40,7 @@ dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-test = [ "coverage>=7.10", "numpy", "pytest" ]
+test = [ "coverage>=7.10", "pytest" ]
 doc = [
   "ipykernel",
   "ipython",
