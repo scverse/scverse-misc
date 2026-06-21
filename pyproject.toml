@@ -40,7 +40,7 @@ dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-test = [ "coverage>=7.10", "numpy", "pytest", "sphinx", "sphinx-autodoc-typehints" ]
+test = [ "coverage>=7.10", "numpy", "pytest" ]
 doc = [
   "ipykernel",
   "ipython",
@@ -79,7 +79,7 @@ envs.hatch-test.matrix = [
 envs.hatch-test.overrides.matrix.deps.env-vars = [
   { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
 ]
-envs.hatch-test.overrides.matrix.deps.features = [
+envs.hatch-test.overrides.matrix.features.features = [
   # make sure the sphinx extension works without having all deps
   { value = "sphinx", if = [ "sphinx", "full" ] },
   { value = "datasets", if = [ "full" ] },
