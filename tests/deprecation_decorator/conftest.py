@@ -19,9 +19,9 @@ def msg(request: pytest.FixtureRequest) -> str | None:
     return cast(str | None, request.param)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def docstring() -> str | None:
-    return None
+    return None  # gets overridden in `test_sphinx.py`
 
 
 @pytest.fixture
