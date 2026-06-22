@@ -41,7 +41,7 @@ __all__ = ["setup"]
 
 def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
-    app.connect("autodoc-process-docstring", _process_docstring)
+    app.connect("autodoc-process-docstring", _process_docstring, priority=100)
 
     return {"version": version("scverse-misc"), "parallel_read_safe": True}
 
