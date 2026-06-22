@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import Annotated
+from typing import Annotated, Literal
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as stdlib_deprecated
@@ -80,6 +80,25 @@ def test_override(subtests: pytest.Subtests, app: Sphinx, parser: type[GoogleDoc
                 assert line == f":type {current_field_name}: {current_field.annotation.__name__}"
 
     assert not list(field_iter)
+
+
+@pytest.mark.parametrize("adds_types", ["s_a_t", "autodoc", None])
+def test_override_add_types(
+    app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring], adds_types: Literal["s_a_t", "autodoc", None]
+) -> None:
+    """Test that `:type <param>:` isn’t added (by us!) when `sphinx_autodoc_typehints` is enabled."""
+    if adds_types == "s_a_t":
+        app.setup_extension("sphinx_autodoc_typehints")
+    elif adds_types == "autodoc":
+        app.setup_extension("sphinx.ext.autodoc")
+        app.config.autodoc_typehints = "description"
+    settings = DummySettings()
+    lines = (inspect.getdoc(settings.override) or "").splitlines()
+    _process_docstring(app, "method", "tests.settings.override", settings.override, AutodocOptions(), lines)
+    lines = parser(lines).lines()
+
+    assert ":param field_bool: Boolean field." in lines
+    assert (":type" in "\n".join(lines)) == (adds_types is None)
 
 
 @pytest.mark.parametrize(
