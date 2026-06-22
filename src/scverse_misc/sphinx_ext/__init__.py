@@ -222,7 +222,9 @@ def _process_settings_method_reset(app: Sphinx, method: MethodType, lines: list[
     names_param = Parameter(
         ["names"], type_annotation=f"typing.Literal[{', '.join(settings.model_fields.keys())}]", is_optional=True
     )
-    model = Docstring(summary=method.__doc__, sections=[Section(SectionKind.PARAMETERS, parameters=[names_param])])
+
+    model = parse("\n".join(lines)).to_model()
+    model.sections = [Section(SectionKind.PARAMETERS, parameters=[names_param])]
     _emit_docstring(app, model, lines)
 
 
