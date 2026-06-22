@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+### Fixed
+
+- The sphinx extension no longer adds parameter types to `override` and `reset` docstrings
+  if the users have `sphinx-autodoc-typehints` enabled or `autodoc_typehints = 'description' | 'both'` set.
+
 ## [0.1.0]
 
 ### Fixed
