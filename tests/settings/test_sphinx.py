@@ -82,6 +82,20 @@ def test_override(subtests: pytest.Subtests, app: Sphinx, parser: type[GoogleDoc
     assert not list(field_iter)
 
 
+@pytest.mark.parametrize("enable_s_a_t", [True, False], ids=["s_a_t", "no_s_a_t"])
+def test_override_s_a_t(app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring], enable_s_a_t: bool) -> None:
+    """Test that `:type <param>:` isn’t added (by us!) when `sphinx_autodoc_typehints` is enabled."""
+    if enable_s_a_t:
+        app.setup_extension("sphinx_autodoc_typehints")
+    settings = DummySettings()
+    lines = (inspect.getdoc(settings.override) or "").splitlines()
+    _process_docstring(app, "method", "tests.settings.override", settings.override, AutodocOptions(), lines)
+    lines = parser(lines).lines()
+
+    assert ":param field_bool: Boolean field." in lines
+    assert (":type" not in "\n".join(lines)) == enable_s_a_t
+
+
 @pytest.mark.parametrize(
     ("attr", "expected"),
     [

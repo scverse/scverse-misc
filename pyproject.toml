@@ -79,6 +79,9 @@ envs.hatch-test.matrix = [
 envs.hatch-test.overrides.matrix.deps.env-vars = [
   { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
 ]
+envs.hatch-test.overrides.matrix.feature-set.extra-dependencies = [
+  { value = "sphinx-autodoc-typehints", if = [ "sphinx", "full" ] },
+]
 envs.hatch-test.overrides.matrix.feature-set.features = [
   # make sure the sphinx extension works without having all deps
   { value = "sphinx", if = [ "sphinx", "full" ] },
