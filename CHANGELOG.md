@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Fixed
 
 - The sphinx extension no longer adds parameter types to `override` and `reset` docstrings
@@ -103,7 +105,8 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
-[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.1
 [0.1.0]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.0
 [0.0.9]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.9
 [0.0.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.8
