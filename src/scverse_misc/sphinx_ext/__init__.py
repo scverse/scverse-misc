@@ -41,6 +41,7 @@ __all__ = ["setup"]
 
 def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
+    # To go first, we use a lower number than napoleon (which uses the default, 500)
     app.connect("autodoc-process-docstring", _process_docstring, priority=100)
 
     return {"version": version("scverse-misc"), "parallel_read_safe": True}
