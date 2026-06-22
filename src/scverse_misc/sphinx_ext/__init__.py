@@ -196,7 +196,9 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
 
 
 def _process_settings_method(app: Sphinx, method: MethodType, lines: list[str]) -> None:
-    add_annot = "sphinx_autodoc_typehints" not in app.extensions
+    sphinx_adds_type = getattr(app.config, "autodoc_typehints", None) in {"description", "both"}
+    ext_adds_type = "sphinx_autodoc_typehints" in app.extensions
+    add_annot = not sphinx_adds_type and not ext_adds_type
     match method.__name__:
         case "override":
             _process_settings_method_override(app, method, lines, add_annot=add_annot)

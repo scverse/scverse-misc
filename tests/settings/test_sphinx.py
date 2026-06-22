@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import Annotated
+from typing import Annotated, Literal
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as stdlib_deprecated
@@ -82,18 +82,23 @@ def test_override(subtests: pytest.Subtests, app: Sphinx, parser: type[GoogleDoc
     assert not list(field_iter)
 
 
-@pytest.mark.parametrize("enable_s_a_t", [True, False], ids=["s_a_t", "no_s_a_t"])
-def test_override_s_a_t(app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring], enable_s_a_t: bool) -> None:
+@pytest.mark.parametrize("adds_types", ["s_a_t", "autodoc", None])
+def test_override_add_types(
+    app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring], adds_types: Literal["s_a_t", "autodoc", None]
+) -> None:
     """Test that `:type <param>:` isn’t added (by us!) when `sphinx_autodoc_typehints` is enabled."""
-    if enable_s_a_t:
+    if adds_types == "s_a_t":
         app.setup_extension("sphinx_autodoc_typehints")
+    elif adds_types == "autodoc":
+        app.setup_extension("sphinx.ext.autodoc")
+        app.config.autodoc_typehints = "description"
     settings = DummySettings()
     lines = (inspect.getdoc(settings.override) or "").splitlines()
     _process_docstring(app, "method", "tests.settings.override", settings.override, AutodocOptions(), lines)
     lines = parser(lines).lines()
 
     assert ":param field_bool: Boolean field." in lines
-    assert (":type" not in "\n".join(lines)) == enable_s_a_t
+    assert (":type" in "\n".join(lines)) == (adds_types is None)
 
 
 @pytest.mark.parametrize(
