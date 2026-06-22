@@ -10,6 +10,8 @@ else:
     from typing_extensions import deprecated as stdlib_deprecated
 
 import pytest
+
+pytest.importorskip("scverse_misc.sphinx_ext")
 from pydantic import Field
 from pydantic.fields import FieldInfo
 from sphinx.application import Sphinx

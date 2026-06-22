@@ -47,6 +47,5 @@ repos:
       - pydocstring-rs
       - pytest
       - sphinx
-      - sphinx-autodoc-typehints
       - sphinxcontrib-katex
       - types-PyYAML

@@ -3,27 +3,17 @@ from __future__ import annotations
 import inspect
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 import pytest
-from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
-from scverse_misc import Deprecation, deprecated, deprecated_arg, sphinx_ext
+pytest.importorskip("scverse_misc.sphinx_ext")
+from scverse_misc import Deprecation, deprecated_arg, sphinx_ext
 from scverse_misc.constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
-
-
-@pytest.fixture(
-    params=[
-        pytest.param(None, id="no_message"),
-        pytest.param("Test message.", id="short_message"),
-        pytest.param("Test\nmessage.", id="long_message"),
-    ]
-)
-def msg(request: pytest.FixtureRequest) -> str | None:
-    return cast(str | None, request.param)
+    from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
 
 
 @pytest.fixture(scope="session", params=["no_docstring", "short", "long_googlestyle", "long_numpystyle"])
@@ -69,33 +59,9 @@ def docstring(request: pytest.FixtureRequest, docstring_style: Literal["google",
             pytest.fail(f"Unknown docstring style {typ}")
 
 
-@pytest.fixture
-def func(msg: str | None, docstring: str | None) -> Callable[..., int]:
-    def _func(
-        positional_only_no_default: int,
-        positional_only_default: int = 1337,
-        /,
-        positional_or_keyword_default: int = 42,
-        *,
-        keyword_only_default: float = 3.1415,
-    ) -> int:
-        return 42
-
-    _func.__doc__ = docstring
-    return _func
-
-
-@pytest.fixture
-def deprecated_func(msg: str | None, func: Callable[..., int]) -> Callable[..., int]:
-    return deprecated(Deprecation("foo", msg or ""))(func)
-
-
 def test_deprecation_decorator(
     app: Sphinx, deprecated_func: Callable[..., int], docstring: str | None, msg: str | None
 ) -> None:
-    with pytest.warns(FutureWarning, match="deprecated"):
-        assert deprecated_func(1, 2) == 42
-
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
     sphinx_ext._process_deprecated_function(app, getattr(deprecated_func, ATTR_DEPRECATED), lines)
     offset = 0 if docstring is None else 2
