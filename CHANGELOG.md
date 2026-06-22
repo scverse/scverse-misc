@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [0.1.0]
+
+### Fixed
+
+- The sphinx extension no longer adds parameter types to `override` and `reset` docstrings
+  if the users have `sphinx-autodoc-typehints` enabled or `autodoc_typehints = 'description' | 'both'` set.
+
+## [0.1.0]
+
+### Fixed
+
+- Allow additional methods on `Settings` subclasses.
+- Allow the Sphinx extension to go anywhere in the `conf.py` extension list.
+- `anndata` isn’t a core dependency anymore again.
+
 ## [0.0.9]
 
 ### Added
@@ -90,7 +105,9 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
-[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.0.9...HEAD
+[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.1
+[0.1.0]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.0
 [0.0.9]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.9
 [0.0.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.8
 [0.0.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.0.7

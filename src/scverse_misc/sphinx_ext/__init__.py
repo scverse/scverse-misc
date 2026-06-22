@@ -41,7 +41,8 @@ __all__ = ["setup"]
 
 def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
-    app.connect("autodoc-process-docstring", _process_docstring)
+    # To go first, we use a lower number than napoleon (which uses the default, 500)
+    app.connect("autodoc-process-docstring", _process_docstring, priority=100)
 
     return {"version": version("scverse-misc"), "parallel_read_safe": True}
 
@@ -195,19 +196,24 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
 
 
 def _process_settings_method(app: Sphinx, method: MethodType, lines: list[str]) -> None:
+    sphinx_adds_type = getattr(app.config, "autodoc_typehints", None) in {"description", "both"}
+    ext_adds_type = "sphinx_autodoc_typehints" in app.extensions
+    add_annot = not sphinx_adds_type and not ext_adds_type
     match method.__name__:
         case "override":
-            _process_settings_method_override(app, method, lines)
+            _process_settings_method_override(app, method, lines, add_annot=add_annot)
         case "reset":
-            _process_settings_method_reset(app, method, lines)
-        case _:
-            raise AssertionError
+            _process_settings_method_reset(app, method, lines, add_annot=add_annot)
 
 
-def _process_settings_method_override(app: Sphinx, method: MethodType, lines: list[str]) -> None:
+def _process_settings_method_override(app: Sphinx, method: MethodType, lines: list[str], *, add_annot: bool) -> None:
     settings = cast("Settings", method.__self__)
     params = [
-        Parameter([fname], type_annotation=type_str(type(settings), field), description=field.description)
+        Parameter(
+            [fname],
+            type_annotation=type_str(type(settings), field) if add_annot else None,
+            description=field.description,
+        )
         for fname, field in type(settings).model_fields.items()
     ]
     model = Docstring(
@@ -217,12 +223,12 @@ def _process_settings_method_override(app: Sphinx, method: MethodType, lines: li
     _emit_docstring(app, model, lines)
 
 
-def _process_settings_method_reset(app: Sphinx, method: MethodType, lines: list[str]) -> None:
+def _process_settings_method_reset(app: Sphinx, method: MethodType, lines: list[str], *, add_annot: bool) -> None:
     settings = cast("Settings", method.__self__)
-    names_param = Parameter(
-        ["names"], type_annotation=f"typing.Literal[{', '.join(settings.model_fields.keys())}]", is_optional=True
-    )
 
+    annot = f"typing.Literal[{', '.join(settings.model_fields.keys())}]" if add_annot else None
+    desc = "Names of settings to reset."
+    names_param = Parameter(["names"], type_annotation=annot, description=desc, is_optional=True)
     model = parse("\n".join(lines)).to_model()
     model.sections = [Section(SectionKind.PARAMETERS, parameters=[names_param])]
     _emit_docstring(app, model, lines)
