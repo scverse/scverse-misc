@@ -49,3 +49,8 @@ repos:
       - sphinx
       - sphinxcontrib-katex
       - types-PyYAML
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.26.1
+    hooks:
+    - id: zizmor
+      args: [--no-progress, --fix]
