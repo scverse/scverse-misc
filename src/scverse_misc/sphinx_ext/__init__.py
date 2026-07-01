@@ -8,7 +8,7 @@ from importlib.metadata import version
 from pathlib import Path
 from textwrap import indent
 from types import MethodType
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast, get_origin
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as deprecated
@@ -50,6 +50,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
     # To go first, we use a lower number than napoleon (which uses the default, 500)
     app.connect("autodoc-process-docstring", _process_docstring, priority=100)
+    app.connect("autodoc-process-bases", _skip_private_bases)
 
     DEFAULT_FILTERS["member_type"] = _member_type
 
@@ -76,6 +77,10 @@ def _parse_returns_section(self: NumpyDocstring, section: str) -> list[str]:
     if lines and lines[-1]:
         lines.append("")
     return lines
+
+
+def _skip_private_bases(app: Sphinx, name: str, obj: type, _unused: Any, bases: list[type]) -> None:  # noqa: ANN401
+    bases[:] = [b for b in bases if b is not object and get_origin(b) is not Generic and not b.__name__.startswith("_")]
 
 
 def _member_type(obj_path: str) -> Literal["method", "property", "attribute"]:
