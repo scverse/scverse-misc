@@ -1,3 +1,6 @@
+import pytest
+
+pytest.importorskip("scverse_misc.sphinx_ext")
 from scverse_misc.sphinx_ext import _member_type
 
 
