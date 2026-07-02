@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+import re
 import sys
 import textwrap
 import warnings
 from importlib.metadata import version
+from pathlib import Path
 from textwrap import indent
 from types import MethodType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast, get_origin
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as deprecated
 else:
     from typing_extensions import deprecated as deprecated
 
+from jinja2.defaults import DEFAULT_FILTERS  # type: ignore[attr-defined]
+from jinja2.utils import import_string
 from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
+from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._extensions import _NSInfo
@@ -30,6 +35,8 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
     from sphinx.application import Sphinx
     from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
@@ -43,8 +50,55 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
     # To go first, we use a lower number than napoleon (which uses the default, 500)
     app.connect("autodoc-process-docstring", _process_docstring, priority=100)
+    app.connect("autodoc-process-bases", _skip_private_bases)
+
+    DEFAULT_FILTERS["member_type"] = _member_type
+
+    app.config.templates_path = list(app.config.templates_path) + [str(Path(__file__).parent / "templates")]
+
+    NumpyDocstring._parse_returns_section = _parse_returns_section  # type: ignore[assignment]
 
     return {"version": version("scverse-misc"), "parallel_read_safe": True}
+
+
+def _process_return(lines: Iterable[str]) -> Generator[str, None, None]:
+    for line in lines:
+        if m := re.fullmatch(r"(?P<param>\w+)\s+:\s+(?P<type>[\w.]+)", line):
+            yield f"-{m['param']} (:class:`~{m['type']}`)"
+        else:
+            yield line
+
+
+def _parse_returns_section(self: NumpyDocstring, section: str) -> list[str]:
+    lines_raw = self._dedent(self._consume_to_next_section())
+    if lines_raw[0] == ":":
+        del lines_raw[0]
+    lines = self._format_block(":returns: ", list(_process_return(lines_raw)))
+    if lines and lines[-1]:
+        lines.append("")
+    return lines
+
+
+def _skip_private_bases(app: Sphinx, name: str, obj: type, _unused: Any, bases: list[type]) -> None:  # noqa: ANN401
+    bases[:] = [b for b in bases if b is not object and get_origin(b) is not Generic and not b.__name__.startswith("_")]
+
+
+def _member_type(obj_path: str) -> Literal["method", "property", "attribute"]:
+    """Determine object member type.
+
+    E.g.: `.. auto{{ fullname | member_type }}::`
+    """
+    # https://jinja.palletsprojects.com/en/stable/api/#custom-filters
+    cls_path, member_name = obj_path.rsplit(".", 1)
+    cls = import_string(cls_path)
+    member = getattr(cls, member_name, None)
+    match member:
+        case property():
+            return "property"
+        case _ if callable(member):
+            return "method"
+        case _:
+            return "attribute"
 
 
 def _process_docstring(
