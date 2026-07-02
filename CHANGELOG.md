@@ -10,7 +10,11 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
-## [0.1.0]
+### Added
+
+- The sphinx extension ships templates for `sphinx.ext.autosummary` that were previously part of `cookiecutter-scverse`.
+
+## [0.1.1]
 
 ### Fixed
 
