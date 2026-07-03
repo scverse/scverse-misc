@@ -76,7 +76,7 @@ def test_deprecation_decorator(
     offset = 0 if docstring is None else 2
 
     if docstring is not None:
-        lines_orig = docstring.expandtabs().splitlines()
+        lines_orig = inspect.cleandoc(docstring).expandtabs().splitlines()
         assert lines[0] == lines_orig[0]
         assert len(lines[1].strip()) == 0, "expected empty line following summary"
 
@@ -85,9 +85,10 @@ def test_deprecation_decorator(
         except ValueError:
             pass
         else:
+            print("TEST")
             returns_offset = lines.index("Returns")
-            for offset in range(max(len(lines_orig) - orig_returns_offset, len(lines) - returns_offset)):
-                assert lines[returns_offset + offset] == lines_orig[orig_returns_offset + offset]
+            for roffset in range(max(len(lines_orig) - orig_returns_offset, len(lines) - returns_offset)):
+                assert lines[returns_offset + roffset] == lines_orig[orig_returns_offset + roffset]
 
     assert lines[offset].startswith(".. version-deprecated")
     if msg is None:
