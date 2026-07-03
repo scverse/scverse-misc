@@ -17,7 +17,21 @@ else:
 
 from jinja2.defaults import DEFAULT_FILTERS  # type: ignore[attr-defined]
 from jinja2.utils import import_string
-from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
+from pydocstring import (
+    Docstring,
+    GoogleDocstring,
+    NumPyDocstring,
+    NumPySectionKind,
+    Parameter,
+    PlainDocstring,
+    Return,
+    Section,
+    SectionKind,
+    Style,
+    emit_google,
+    emit_numpy,
+    parse,
+)
 from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
 
 from .._deprecated import Deprecation, deprecated_arg
@@ -116,13 +130,35 @@ def _process_docstring(
             if hasattr(obj, ATTR_DEPRECATED) and isinstance(msg := getattr(obj, ATTR_DEPRECATED, None), Deprecation):
                 _process_deprecated_function(app, msg, lines)
             if (args := getattr(obj, ATTR_DEPRECATED_ARG, None)) is not None:
-                _process_deprecated_args(args, lines)
+                _process_deprecated_args(app, args, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
 
 
-def _emit_docstring(app: Sphinx, model: Docstring, lines: list[str]) -> None:
+def _emit_docstring(
+    app: Sphinx,
+    model: Docstring,
+    lines: list[str],
+    parsed: NumPyDocstring | GoogleDocstring | PlainDocstring | None = None,
+) -> None:
     """Emit a docstring compatible with the user settings (i.e. renderable with the chosen napoleon settings)."""
+    # pydocstring doesn't support prose return sections and tries to parse them as NumPy style.
+    # Copy the original return section verbatim.
+    if parsed is not None and isinstance(parsed, NumPyDocstring):
+        sections = model.sections
+        return_section = None
+        for i, section in enumerate(sections):
+            if section.kind == SectionKind.RETURNS:
+                return_section = i
+                break
+
+        if return_section is not None:
+            ast_section = parsed.sections[return_section]
+            assert ast_section.section_kind == NumPySectionKind.RETURNS
+            text = "\n".join(parsed.source[ast_section.range.start : ast_section.range.end].splitlines()[2:])
+            sections[i] = Section(SectionKind.UNKNOWN, unknown_name=ast_section.header_name.text, body=text)
+            model.sections = sections
+
     if getattr(app.config, "napoleon_google_docstring", True):
         doc = emit_google(model)
     elif getattr(app.config, "napoleon_numpy_docstring", True):
@@ -145,10 +181,10 @@ def _process_deprecated_function(app: Sphinx, msg: Deprecation, lines: list[str]
     if model.extended_summary is not None:
         notice += f"\n\n{model.extended_summary}"
     model.extended_summary = notice
-    _emit_docstring(app, model, lines)
+    _emit_docstring(app, model, lines, parsed)
 
 
-def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str]) -> None:
+def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], lines: list[str]) -> None:
     parsed = parse("\n".join(lines))
     if parsed.style is Style.PLAIN:
         return
@@ -178,15 +214,8 @@ def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str
         sections = model.sections
         sections[s] = Section(section.kind, parameters=params)
         model.sections = sections
-    match parsed.style:
-        case Style.GOOGLE:
-            doc = emit_google(model)
-        case Style.NUMPY:
-            doc = emit_numpy(model)
-        case _:  # pragma: no cover
-            raise AssertionError
 
-    lines[:] = doc.strip("\n").splitlines()
+    _emit_docstring(app, model, lines, parsed)
 
 
 _settings_docstring_template = """Allows users to customize settings for the `{package}` package.
