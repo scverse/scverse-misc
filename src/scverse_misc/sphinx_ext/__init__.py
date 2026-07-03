@@ -84,6 +84,7 @@ def _process_return(lines: Iterable[str]) -> Generator[str, None, None]:
 
 
 def _parse_returns_section(self: NumpyDocstring, section: str) -> list[str]:
+    """Add support for prose return sections in Numpy-style docstrings."""
     lines_raw = self._dedent(self._consume_to_next_section())
     if lines_raw[0] == ":":
         del lines_raw[0]
