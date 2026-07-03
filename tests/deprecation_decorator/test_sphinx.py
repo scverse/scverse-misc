@@ -85,7 +85,6 @@ def test_deprecation_decorator(
         except ValueError:
             pass
         else:
-            print("TEST")
             returns_offset = lines.index("Returns")
             for roffset in range(max(len(lines_orig) - orig_returns_offset, len(lines) - returns_offset)):
                 assert lines[returns_offset + roffset] == lines_orig[orig_returns_offset + roffset]
