@@ -1,19 +1,38 @@
 from __future__ import annotations
 
+import re
 import sys
 import textwrap
 import warnings
 from importlib.metadata import version
+from pathlib import Path
 from textwrap import indent
 from types import MethodType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast, get_origin
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as deprecated
 else:
     from typing_extensions import deprecated as deprecated
 
-from pydocstring import Docstring, Parameter, Return, Section, SectionKind, Style, emit_google, emit_numpy, parse
+from jinja2.defaults import DEFAULT_FILTERS  # type: ignore[attr-defined]
+from jinja2.utils import import_string
+from pydocstring import (
+    Docstring,
+    GoogleDocstring,
+    NumPyDocstring,
+    NumPySectionKind,
+    Parameter,
+    PlainDocstring,
+    Return,
+    Section,
+    SectionKind,
+    Style,
+    emit_google,
+    emit_numpy,
+    parse,
+)
+from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._extensions import _NSInfo
@@ -30,6 +49,8 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
     from sphinx.application import Sphinx
     from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
@@ -43,8 +64,56 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("sphinx.ext.autodoc")
     # To go first, we use a lower number than napoleon (which uses the default, 500)
     app.connect("autodoc-process-docstring", _process_docstring, priority=100)
+    app.connect("autodoc-process-bases", _skip_private_bases)
+
+    DEFAULT_FILTERS["member_type"] = _member_type
+
+    app.config.templates_path = list(app.config.templates_path) + [str(Path(__file__).parent / "templates")]
+
+    NumpyDocstring._parse_returns_section = _parse_returns_section  # type: ignore[assignment]
 
     return {"version": version("scverse-misc"), "parallel_read_safe": True}
+
+
+def _process_return(lines: Iterable[str]) -> Generator[str, None, None]:
+    for line in lines:
+        if m := re.fullmatch(r"(?P<param>\w+)\s+:\s+(?P<type>[\w.]+)", line):
+            yield f"-{m['param']} (:class:`~{m['type']}`)"
+        else:
+            yield line
+
+
+def _parse_returns_section(self: NumpyDocstring, section: str) -> list[str]:
+    """Add support for prose return sections in Numpy-style docstrings."""
+    lines_raw = self._dedent(self._consume_to_next_section())
+    if lines_raw[0] == ":":
+        del lines_raw[0]
+    lines = self._format_block(":returns: ", list(_process_return(lines_raw)))
+    if lines and lines[-1]:
+        lines.append("")
+    return lines
+
+
+def _skip_private_bases(app: Sphinx, name: str, obj: type, _unused: Any, bases: list[type]) -> None:  # noqa: ANN401
+    bases[:] = [b for b in bases if b is not object and get_origin(b) is not Generic and not b.__name__.startswith("_")]
+
+
+def _member_type(obj_path: str) -> Literal["method", "property", "attribute"]:
+    """Determine object member type.
+
+    E.g.: `.. auto{{ fullname | member_type }}::`
+    """
+    # https://jinja.palletsprojects.com/en/stable/api/#custom-filters
+    cls_path, member_name = obj_path.rsplit(".", 1)
+    cls = import_string(cls_path)
+    member = getattr(cls, member_name, None)
+    match member:
+        case property():
+            return "property"
+        case _ if callable(member):
+            return "method"
+        case _:
+            return "attribute"
 
 
 def _process_docstring(
@@ -62,13 +131,35 @@ def _process_docstring(
             if hasattr(obj, ATTR_DEPRECATED) and isinstance(msg := getattr(obj, ATTR_DEPRECATED, None), Deprecation):
                 _process_deprecated_function(app, msg, lines)
             if (args := getattr(obj, ATTR_DEPRECATED_ARG, None)) is not None:
-                _process_deprecated_args(args, lines)
+                _process_deprecated_args(app, args, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
 
 
-def _emit_docstring(app: Sphinx, model: Docstring, lines: list[str]) -> None:
+def _emit_docstring(
+    app: Sphinx,
+    model: Docstring,
+    lines: list[str],
+    parsed: NumPyDocstring | GoogleDocstring | PlainDocstring | None = None,
+) -> None:
     """Emit a docstring compatible with the user settings (i.e. renderable with the chosen napoleon settings)."""
+    # pydocstring doesn't support prose return sections and tries to parse them as NumPy style.
+    # Copy the original return section verbatim.
+    if parsed is not None and isinstance(parsed, NumPyDocstring):
+        sections = model.sections
+        return_section = None
+        for i, section in enumerate(sections):
+            if section.kind == SectionKind.RETURNS:
+                return_section = i
+                break
+
+        if return_section is not None:
+            ast_section = parsed.sections[return_section]
+            assert ast_section.section_kind == NumPySectionKind.RETURNS
+            text = "\n".join(parsed.source[ast_section.range.start : ast_section.range.end].splitlines()[2:])
+            sections[i] = Section(SectionKind.UNKNOWN, unknown_name=ast_section.header_name.text, body=text)
+            model.sections = sections
+
     if getattr(app.config, "napoleon_google_docstring", True):
         doc = emit_google(model)
     elif getattr(app.config, "napoleon_numpy_docstring", True):
@@ -91,10 +182,10 @@ def _process_deprecated_function(app: Sphinx, msg: Deprecation, lines: list[str]
     if model.extended_summary is not None:
         notice += f"\n\n{model.extended_summary}"
     model.extended_summary = notice
-    _emit_docstring(app, model, lines)
+    _emit_docstring(app, model, lines, parsed)
 
 
-def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str]) -> None:
+def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], lines: list[str]) -> None:
     parsed = parse("\n".join(lines))
     if parsed.style is Style.PLAIN:
         return
@@ -124,15 +215,8 @@ def _process_deprecated_args(deprecations: list[deprecated_arg], lines: list[str
         sections = model.sections
         sections[s] = Section(section.kind, parameters=params)
         model.sections = sections
-    match parsed.style:
-        case Style.GOOGLE:
-            doc = emit_google(model)
-        case Style.NUMPY:
-            doc = emit_numpy(model)
-        case _:  # pragma: no cover
-            raise AssertionError
 
-    lines[:] = doc.strip("\n").splitlines()
+    _emit_docstring(app, model, lines, parsed)
 
 
 _settings_docstring_template = """Allows users to customize settings for the `{package}` package.

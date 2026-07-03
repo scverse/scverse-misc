@@ -40,6 +40,15 @@ def docstring(request: pytest.FixtureRequest, docstring_style: Literal["google",
                 baz
             keyword_only_default
                 foobar
+
+            Returns
+            -------
+            This is a prose returns section.
+
+            :attr:`~module.ClassName.attr1`
+                First attribute
+            :attr:`~module.ClassName.attr2`
+                Second attribute
             """
         case "long_googlestyle":
             if docstring_style == "numpy":
@@ -67,9 +76,18 @@ def test_deprecation_decorator(
     offset = 0 if docstring is None else 2
 
     if docstring is not None:
-        lines_orig = docstring.expandtabs().splitlines()
+        lines_orig = inspect.cleandoc(docstring).expandtabs().splitlines()
         assert lines[0] == lines_orig[0]
         assert len(lines[1].strip()) == 0, "expected empty line following summary"
+
+        try:
+            orig_returns_offset = lines_orig.index("Returns")
+        except ValueError:
+            pass
+        else:
+            returns_offset = lines.index("Returns")
+            for roffset in range(max(len(lines_orig) - orig_returns_offset, len(lines) - returns_offset)):
+                assert lines[returns_offset + roffset] == lines_orig[orig_returns_offset + roffset]
 
     assert lines[offset].startswith(".. version-deprecated")
     if msg is None:
@@ -85,7 +103,7 @@ def test_deprecation_decorator(
     ("positional_only_no_default", "positional_only_default", "positional_or_keyword_default", "keyword_only_default"),
 )
 def test_deprecated_arg_decorator(
-    parser: type[GoogleDocstring | NumpyDocstring], func: Callable[..., int], msg: str | None, arg: str
+    app: Sphinx, parser: type[GoogleDocstring | NumpyDocstring], func: Callable[..., int], msg: str | None, arg: str
 ) -> None:
     deprecated_func = deprecated_arg(arg, Deprecation("2.718", msg or ""))(func)
     with pytest.warns(FutureWarning, match=f"{arg} is deprecated"):
@@ -100,7 +118,7 @@ def test_deprecated_arg_decorator(
         return
 
     lines = (inspect.getdoc(deprecated_func) or "").splitlines()
-    sphinx_ext._process_deprecated_args(getattr(deprecated_func, ATTR_DEPRECATED_ARG), lines)
+    sphinx_ext._process_deprecated_args(app, getattr(deprecated_func, ATTR_DEPRECATED_ARG), lines)
     lines = parser(lines).lines()
 
     prefix = f":param {arg}:"
