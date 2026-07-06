@@ -29,7 +29,7 @@ dependencies = [
 optional-dependencies.datasets = [ "anndata", "pooch", "pyyaml", "tqdm" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
-optional-dependencies.sphinx = [ "jinja2", "pydocstring-rs>=0.1.13", "sphinx>=9" ]
+optional-dependencies.sphinx = [ "jinja2", "pydocstring-rs>=0.1.14", "sphinx>=9" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
 urls.Homepage = "https://github.com/scverse/scverse-misc"

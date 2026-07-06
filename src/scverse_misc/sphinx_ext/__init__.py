@@ -191,30 +191,20 @@ def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], li
         return
 
     model = parsed.to_model()
-    if found := next(
-        (
-            (s, section, p, par, deprecation)
-            for s, section in enumerate(model.sections)
-            if section.kind in {SectionKind.PARAMETERS, SectionKind.KEYWORD_PARAMETERS, SectionKind.OTHER_PARAMETERS}
-            for p, par in enumerate(section.parameters)
-            for deprecation in deprecations
-            if deprecation.arg in par.names
-        ),
-        None,
+    for par, deprecation in (
+        (par, deprecation)
+        for section in model.sections
+        if section.kind in {SectionKind.PARAMETERS, SectionKind.KEYWORD_PARAMETERS, SectionKind.OTHER_PARAMETERS}
+        for par in section.parameters
+        for deprecation in deprecations
+        if deprecation.arg in par.names
     ):
-        s, section, p, par, deprecation = found
-
         docmsg = f".. version-deprecated:: {deprecation.msg.version_deprecated}"
         if len(deprecation.msg):
             docmsg += f"\n   {deprecation.msg}"
         if par.description is not None:
             docmsg += f"\n\n{par.description}"
         par.description = docmsg
-        params = list(section.parameters)
-        params[p] = par
-        sections = model.sections
-        sections[s] = Section(section.kind, parameters=params)
-        model.sections = sections
 
     _emit_docstring(app, model, lines, parsed)
 
