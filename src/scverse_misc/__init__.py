@@ -1,6 +1,7 @@
+from contextlib import suppress
+
 from ._deprecated import Deprecation, deprecated, deprecated_arg
 from ._extensions import ExtensionNamespace, make_register_namespace_decorator
-from ._settings import Settings
 
 __all__ = [
     "ExtensionNamespace",
@@ -8,5 +9,10 @@ __all__ = [
     "deprecated",
     "deprecated_arg",
     "Deprecation",
-    "Settings",
 ]
+
+# Settings needs pydantic-settings; only exported when scverse-misc[settings] is installed.
+with suppress(ImportError):
+    from ._settings import Settings  # noqa: F401
+
+    __all__.append("Settings")

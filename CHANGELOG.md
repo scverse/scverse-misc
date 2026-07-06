@@ -19,9 +19,14 @@ and this project adheres to [Semantic Versioning][].
   `FileEntry` + `parse_registry` (YAML), a thin pooch-based `fetch` (SHA-256 verification,
   retries, archive processors), and a pluggable `type -> loader` registry
   (`register_loader`) so packages can share dataset-download infrastructure. Ships built-in
-  `anndata` and `spatialdata` loaders (the latter behind the `spatialdata` extra); other
+  `anndata` and `spatialdata` loaders (`spatialdata` behind the `spatialdata` extra;
+  `anndata` provided by the consumer, as scverse-misc does not depend on it); other
   types are consumer-registered.
-- `anndata` is now a core dependency.
+- A shared `logging` module: one `scverse` parent logger with a single handler (rich if
+  installed, else plain), package loggers as children, a `Rule` extension point for
+  filtering/rewriting output, and an opt-in scanpy-style `TimedLogger`. Works with no extra
+  dependencies; installing `scverse-misc[settings]` additionally enables `SCVERSE_MISC_*`
+  env-var loading and `override`/`reset` for the logging config.
 
 ### Changed
 

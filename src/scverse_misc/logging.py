@@ -30,10 +30,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Literal, Self, cast, overload
 
-from pydantic import field_validator, model_validator
-
-from ._settings import Settings
-
 __all__ = ["Rule", "Elapsed", "Deep", "TimedLogger", "config", "get_logger"]
 
 _ROOT = "scverse"
@@ -109,53 +105,70 @@ def _rich_available() -> bool:
     return find_spec("rich") is not None
 
 
-class _LogConfig(Settings):
-    """Central logging configuration; the singleton instance is :data:`config`.
+# The shared ``scverse`` logger is the single source of truth for live state;
+# both config tiers drive it through the helpers below. The full tier additionally
+# needs pydantic-settings (via the shared Settings base) for env-var loading
+# (SCVERSE_MISC_*) and the override()/reset() context managers.
+try:
+    from pydantic import field_validator, model_validator
 
-    Subclasses :class:`~scverse_misc.Settings`, so values also load from
-    environment variables (prefix ``SCVERSE_MISC_``) and support the inherited
-    :meth:`override`/:meth:`reset` context managers. The shared ``scverse``
-    logger is the source of truth for the live state; assigning a field
-    re-applies it via the validator below.
+    from ._settings import Settings
+
+    _HAVE_SETTINGS = True
+except ImportError:
+    _HAVE_SETTINGS = False
+
+
+def _canonical_level(value: str | int) -> str:
+    """Validate and normalize a level to a canonical name (e.g. ``"WARNING"``)."""
+    if isinstance(value, str):
+        if not isinstance(logging.getLevelName(value.upper()), int):
+            raise ValueError(f"unknown log level name: {value!r}")
+        return value.upper()
+    name = logging.getLevelName(value)
+    if name.startswith("Level "):
+        raise ValueError(f"unknown log level: {value!r}")
+    return name
+
+
+def _reinstall(verbosity: str | int, rich: bool | None) -> None:
+    """Apply ``verbosity`` + ``rich`` to the shared ``scverse`` logger.
+
+    Swaps the handler only when the rich state actually changed, carrying any
+    registered rules across; on first call it seeds the universal rules.
     """
+    root = logging.getLogger(_ROOT)
+    root.propagate = False  # one handler here; don't double-log via root
+    root.setLevel(_canonical_level(verbosity))
+    use_rich = _rich_available() if rich is None else rich
+    current = root.handlers[0] if root.handlers else None
+    # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
+    if current is None or isinstance(current, logging.StreamHandler) == use_rich:
+        rules = list(current.filters) if current else [Elapsed(), Deep()]  # carry rules across
+        for h in list(root.handlers):
+            root.removeHandler(h)
+        handler = _make_handler(use_rich)
+        for r in rules:
+            handler.addFilter(r)
+        root.addHandler(handler)
 
-    verbosity: str | int = "warning"
-    """Central level for all scverse loggers; a level name (``"info"``) or an int."""
 
-    rich: bool | None = None
-    """Force rich rendering on/off; ``None`` auto-detects whether rich is installed."""
+def _current_rules() -> list[logging.Filter]:
+    return cast("list[logging.Filter]", logging.getLogger(_ROOT).handlers[0].filters)
 
-    @field_validator("verbosity")
-    @classmethod
-    def _canonical_level(cls, value: str | int) -> str:
-        """Validate and normalize to a canonical level name (e.g. ``"WARNING"``)."""
-        if isinstance(value, str):
-            if not isinstance(logging.getLevelName(value.upper()), int):
-                raise ValueError(f"unknown log level name: {value!r}")
-            return value.upper()
-        name = logging.getLevelName(value)
-        if name.startswith("Level "):
-            raise ValueError(f"unknown log level: {value!r}")
-        return name
 
-    @model_validator(mode="after")
-    def _apply(self) -> Self:
-        """Push the current settings onto the shared ``scverse`` logger and handler."""
-        root = logging.getLogger(_ROOT)
-        root.propagate = False  # one handler here; don't double-log via root
-        root.setLevel(self.verbosity)
-        use_rich = _rich_available() if self.rich is None else self.rich
-        current = root.handlers[0] if root.handlers else None
-        # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
-        if current is None or isinstance(current, logging.StreamHandler) == use_rich:
-            rules = list(current.filters) if current else [Elapsed(), Deep()]  # carry rules across
-            for h in list(root.handlers):
-                root.removeHandler(h)
-            handler = _make_handler(use_rich)
-            for r in rules:
-                handler.addFilter(r)
-            root.addHandler(handler)
-        return self
+def _add_rule(rule: Rule) -> None:
+    for h in logging.getLogger(_ROOT).handlers:
+        h.addFilter(rule)
+
+
+def _remove_rule(rule: Rule) -> None:
+    for h in logging.getLogger(_ROOT).handlers:
+        h.removeFilter(rule)
+
+
+class _RuleAccess:
+    """Rule/handler accessors shared by both config tiers (all target the shared logger)."""
 
     @property
     def _root(self) -> logging.Logger:
@@ -163,15 +176,77 @@ class _LogConfig(Settings):
 
     @property
     def _rules(self) -> list[logging.Filter]:
-        return cast("list[logging.Filter]", self._root.handlers[0].filters)
+        return _current_rules()
 
     def add_rule(self, rule: Rule) -> None:
-        for h in self._root.handlers:
-            h.addFilter(rule)
+        _add_rule(rule)
 
     def remove_rule(self, rule: Rule) -> None:
-        for h in self._root.handlers:
-            h.removeFilter(rule)
+        _remove_rule(rule)
+
+
+if _HAVE_SETTINGS:
+
+    class _LogConfig(Settings, _RuleAccess):
+        """Central logging configuration; the singleton instance is :data:`config`.
+
+        Subclasses :class:`~scverse_misc.Settings`, so values also load from
+        environment variables (prefix ``SCVERSE_MISC_``) and support the inherited
+        :meth:`override`/:meth:`reset` context managers. Install
+        ``scverse-misc[settings]`` to get this tier; without it the reduced tier
+        keeps verbosity/rich/rules but drops env-var loading and override/reset.
+        """
+
+        verbosity: str | int = "warning"
+        """Central level for all scverse loggers; a level name (``"info"``) or an int."""
+
+        rich: bool | None = None
+        """Force rich rendering on/off; ``None`` auto-detects whether rich is installed."""
+
+        @field_validator("verbosity")
+        @classmethod
+        def _validate_level(cls, value: str | int) -> str:
+            """Validate and normalize the level (delegates to the shared helper)."""
+            return _canonical_level(value)
+
+        @model_validator(mode="after")
+        def _apply(self) -> Self:
+            """Re-apply the current settings onto the shared ``scverse`` logger."""
+            _reinstall(self.verbosity, self.rich)
+            return self
+
+else:
+
+    class _LogConfig(_RuleAccess):  # type: ignore[no-redef]
+        """Central logging configuration; the singleton instance is :data:`config`.
+
+        Reduced tier, used when ``pydantic-settings`` is absent. Logging works
+        fully (verbosity, rich toggle, rules); install ``scverse-misc[settings]``
+        to also load ``SCVERSE_MISC_*`` env vars and get ``override``/``reset``.
+        """
+
+        def __init__(self) -> None:
+            self._rich: bool | None = None  # None = auto-detect rich
+            _reinstall("warning", self._rich)
+
+        @property
+        def verbosity(self) -> str | int:
+            """Central level for all scverse loggers. Set with a name (``"info"``) or int."""
+            return logging.getLevelName(logging.getLogger(_ROOT).level)
+
+        @verbosity.setter
+        def verbosity(self, level: str | int) -> None:
+            _reinstall(level, self._rich)
+
+        @property
+        def rich(self) -> bool | None:
+            """Force rich on/off; ``None`` auto-detects. Set ``True``/``False``/``None``."""
+            return self._rich
+
+        @rich.setter
+        def rich(self, enabled: bool | None) -> None:
+            self._rich = enabled
+            _reinstall(self.verbosity, enabled)
 
 
 config = _LogConfig()

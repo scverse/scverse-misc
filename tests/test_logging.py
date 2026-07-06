@@ -184,6 +184,43 @@ def test_timed_logger_delegates_unknown_attrs() -> None:
     assert log.getEffectiveLevel() == logging.getLogger("scverse.selftest").getEffectiveLevel()
 
 
+def test_reduced_tier_without_pydantic_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With pydantic-settings absent, logging falls back to the stdlib config tier."""
+    import importlib
+    import sys
+
+    root = logging.getLogger("scverse")
+    saved_handlers, saved_level = list(root.handlers), root.level
+
+    # make `from ._settings import Settings` raise ImportError inside logging.py
+    monkeypatch.setitem(sys.modules, "scverse_misc._settings", None)
+    try:
+        reduced = importlib.reload(mod)
+        assert reduced._HAVE_SETTINGS is False
+
+        cfg = reduced.config
+        assert not hasattr(cfg, "override")  # override/reset are full-tier (settings) only
+        assert cfg.rich is None  # default matches the full tier (None = auto-detect)
+
+        cfg.verbosity = "info"
+        assert cfg.verbosity == "INFO"
+        for bad in ("bogus", 999):  # reduced tier validates too (raises ValueError, not ValidationError)
+            with pytest.raises(ValueError):
+                cfg.verbosity = bad
+        assert cfg.verbosity == "INFO"  # rejected assignment leaves the value untouched
+
+        tag = reduced.Rule()
+        cfg.add_rule(tag)
+        cfg.add_rule(tag)  # handler dedups; must not leave a phantom copy
+        cfg.remove_rule(tag)
+        assert tag not in cfg._rules  # regression: reduced tier used to resurrect removed rules
+    finally:
+        monkeypatch.undo()
+        importlib.reload(mod)  # restore the full tier for the rest of the suite
+        root.handlers[:] = saved_handlers
+        root.setLevel(saved_level)
+
+
 def test_rich_property_installs_rich_handler() -> None:
     pytest.importorskip("rich")
     from rich.logging import RichHandler

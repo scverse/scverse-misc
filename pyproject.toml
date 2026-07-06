@@ -22,18 +22,13 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "anndata",
-  "pydantic-settings",
-  "python-dotenv",
   # for debug logging (referenced from the issue template)
   "session-info2",
   "typing-extensions; python_version<'3.13'",
 ]
 optional-dependencies.datasets = [ "pooch", "pyyaml", "tqdm" ]
 optional-dependencies.rich = [ "rich" ]
-# Kept for backwards compat: anndata <0.13 references scverse-misc[settings].
-# The deps are now hard dependencies (see above), so this extra is empty.
-optional-dependencies.settings = []
+optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
 optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13", "sphinx>=9" ]
 # https://docs.pypi.org/project_metadata/#project-urls
@@ -47,6 +42,7 @@ dev = [
   "twine>=4.0.2",
 ]
 test = [
+  "anndata",                                # exercises the built-in anndata dataset loader; not a package dependency
   "coverage>=7.10",
   "numpy",
   "pytest",
@@ -55,6 +51,7 @@ test = [
   "sphinx-autodoc-typehints"
 ]
 doc = [
+  "anndata",                                # resolves the anndata loader's type hints during doc builds
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
