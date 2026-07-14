@@ -195,7 +195,7 @@ def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], li
         (par, deprecation)
         for section in model.sections
         if section.kind in {SectionKind.PARAMETERS, SectionKind.KEYWORD_PARAMETERS, SectionKind.OTHER_PARAMETERS}
-        for par in section.parameters
+        for par in section.parameters  # type: ignore[union-attr]
         for deprecation in deprecations
         if deprecation.arg in par.names
     ):
