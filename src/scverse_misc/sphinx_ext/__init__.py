@@ -17,7 +17,7 @@ else:
 
 from jinja2.defaults import DEFAULT_FILTERS  # type: ignore[attr-defined]
 from jinja2.utils import import_string
-from pydocstring import Document, Parsed, Style, SyntaxKind, TextBlock, TextRange, emit_google, emit_numpy, parse
+from pydocstring import Document, Parsed, Style, TextBlock, emit_google, emit_numpy, parse
 from pydocstring.model import Block, Docstring, Parameter, Return, Section, SectionKind
 from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
 
@@ -197,14 +197,8 @@ def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], li
 
         if desc is None:
             edits.insert(par.range.end, f"\n{docmsg}")
-        elif _starts_own_line(parsed, desc):
-            edits.replace(desc.range, f"{docmsg}\n\n{indentation}{desc.text}")
         else:
-            colon = par.syntax.find_token(SyntaxKind.COLON)
-            edits.replace(
-                TextRange(colon.range.end, desc.range.end),  # type: ignore[union-attr]
-                f"\n{indentation}{docmsg}\n\n{indentation}{desc.text}",
-            )
+            edits.replace(desc.range, f"{docmsg}\n\n{indentation}{desc.text}")
 
     lines[:] = edits.apply().splitlines()
 
