@@ -44,7 +44,7 @@ repos:
       args: []
       additional_dependencies:
       - pydantic-settings
-      - pydocstring-rs
+      - pydocstring-rs>=0.4.1
       - pytest
       - sphinx
       - sphinxcontrib-katex
