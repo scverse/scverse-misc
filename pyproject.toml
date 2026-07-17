@@ -37,7 +37,7 @@ urls.Source = "https://github.com/scverse/scverse-misc"
 
 [dependency-groups]
 dev = [
-  "pre-commit",
+  "prek",
   "twine>=4.0.2",
 ]
 test = [ "coverage>=7.10", "pytest" ]
