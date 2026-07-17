@@ -8,15 +8,18 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from scverse_misc.datasets import (
-    DatasetEntry,
-    FileEntry,
-    _fetcher,
-    available_loaders,
-    fetch,
-    parse_registry,
-    register_loader,
-)
+try:
+    from scverse_misc.datasets import (
+        DatasetEntry,
+        FileEntry,
+        _fetcher,
+        available_loaders,
+        fetch,
+        parse_registry,
+        register_loader,
+    )
+except ImportError:
+    pytest.skip("missing dependencies", allow_module_level=True)
 
 if TYPE_CHECKING:
     from scverse_misc.datasets import DownloadCB
