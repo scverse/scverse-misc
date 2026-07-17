@@ -1,3 +1,4 @@
+import sys
 from functools import cache
 
 import pytest
@@ -32,11 +33,22 @@ class DummyCls:
         return 4.13
 
 
-def test_member_type() -> None:
+alias = sys.modules[__name__]
+
+
+@pytest.mark.parametrize(
+    ["attrname", "attrtype"],
+    (
+        ("attr", "attribute"),
+        ("func", "method"),
+        ("prop", "property"),
+        ("static", "method"),
+        ("klass", "method"),
+        ("cached", "method"),
+    ),
+)
+def test_member_type(attrname: str, attrtype: str) -> None:
     obj_path = f"{__name__}.DummyCls.{{}}"
-    assert _member_type(obj_path.format("attr")) == "attribute"
-    assert _member_type(obj_path.format("func")) == "method"
-    assert _member_type(obj_path.format("prop")) == "property"
-    assert _member_type(obj_path.format("static")) == "method"
-    assert _member_type(obj_path.format("klass")) == "method"
-    assert _member_type(obj_path.format("cached")) == "method"
+    alias_path = f"{__name__}.alias.DummyCls.{{}}"
+    assert _member_type(obj_path.format(attrname)) == attrtype
+    assert _member_type(alias_path.format(attrname)) == attrtype
