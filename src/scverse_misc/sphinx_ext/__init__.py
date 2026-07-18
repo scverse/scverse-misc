@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 import sys
 import textwrap
+import traceback
 import warnings
 from importlib.metadata import version
 from pathlib import Path
-from textwrap import indent
 from types import MethodType
 from typing import TYPE_CHECKING, Any, Generic, Literal, cast, get_origin
 
@@ -16,10 +16,12 @@ else:
     from typing_extensions import deprecated as deprecated
 
 from jinja2.defaults import DEFAULT_FILTERS  # type: ignore[attr-defined]
-from jinja2.utils import import_string
 from pydocstring import Document, Parsed, Style, TextBlock, emit_google, emit_numpy, parse
 from pydocstring.model import Block, Docstring, Parameter, Return, Section, SectionKind
+from sphinx.ext.autodoc import Options as AutodocOptions
+from sphinx.ext.autodoc import import_object
 from sphinx.ext.napoleon import NumpyDocstring  # type: ignore[attr-defined]
+from sphinx.util import logging
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._extensions import _NSInfo
@@ -39,12 +41,13 @@ if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
     from sphinx.application import Sphinx
-    from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
     from sphinx.util.typing import ExtensionMetadata
 
 
 __all__ = ["setup"]
+
+_logger = logging.getLogger(__package__)
 
 
 def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
@@ -91,8 +94,14 @@ def _member_type(obj_path: str) -> Literal["method", "property", "attribute"]:
     E.g.: `.. auto{{ fullname | member_type }}::`
     """
     # https://jinja.palletsprojects.com/en/stable/api/#custom-filters
-    cls_path, member_name = obj_path.rsplit(".", 1)
-    cls = import_string(cls_path)
+    cls_path, cls_name, member_name = obj_path.rsplit(".", 2)
+    try:
+        cls = import_object(cls_path, [cls_name], "class")[-1]
+    except ImportError:
+        _logger.error(
+            f"Failed to import {cls_name} from {cls_path}; the following exception was rased: {traceback.format_exc()}"
+        )
+        return "attribute"
     member = getattr(cls, member_name, None)
     match member:
         case property():
@@ -189,7 +198,7 @@ def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], li
             indentation = parsed.line_indent(par.range.start) + "    "
         docmsg = f".. version-deprecated:: {deprecation.msg.version_deprecated}"
         if len(deprecation.msg):
-            docmsg += f"\n{indent(deprecation.msg, '   ')}"
+            docmsg += f"\n{textwrap.indent(deprecation.msg, '   ')}"
 
         docmsg_lines = docmsg.splitlines()
         if len(docmsg_lines) > 1:
@@ -254,7 +263,7 @@ def _process_settings_object(settings: Settings, name: str, lines: list[str]) ->
         if deprecation_msg is not None:
             doc.append("")
             doc.append(f"   .. version-deprecated:: {deprecation_version}")
-            doc.append(indent(deprecation_msg, 6 * " "))
+            doc.append(textwrap.indent(deprecation_msg, 6 * " "))
 
         if field.description is not None:
             doc.append("")
