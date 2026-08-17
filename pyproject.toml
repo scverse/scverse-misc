@@ -147,11 +147,11 @@ strict = true
 testpaths = [ "tests" ]
 
 [tool.coverage]
+run.source = [ "scverse_misc" ]
 run.omit = [
   "**/test_*.py",
 ]
 run.patch = [ "subprocess" ]
-run.source = [ "scverse_misc" ]
 
 [tool.cruft]
 skip = [
