@@ -3,6 +3,9 @@ from __future__ import annotations
 import inspect
 from typing import TYPE_CHECKING
 
+import pytest
+
+pytest.importorskip("scverse_misc.sphinx_ext")
 from sphinx.ext.autodoc import Options as AutodocOptions
 
 from scverse_misc import make_register_namespace_decorator

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
-from sphinx.testing.util import SphinxTestApp
 
 if TYPE_CHECKING:
     from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
+    from sphinx.testing.util import SphinxTestApp
 
-pytest_plugins = ["sphinx.testing.fixtures"]
+if find_spec("sphinx"):
+    pytest_plugins = ["sphinx.testing.fixtures"]
 
 
 @pytest.fixture(scope="session", params=["google", "numpy"])
@@ -36,12 +38,7 @@ def app(
     app = make_app(
         srcdir=tmp_path,
         confoverrides=dict(
-            extensions=[
-                "sphinx.ext.autodoc",
-                "scverse_misc.sphinx_ext",
-                "sphinx.ext.napoleon",
-                "sphinx_autodoc_typehints",
-            ],
+            extensions=["sphinx.ext.autodoc", "scverse_misc.sphinx_ext", "sphinx.ext.napoleon"],
             typehints_defaults="braces",
             napoleon_google_docstring=docstring_style == "google",
             napoleon_numpy_docstring=docstring_style == "numpy",

@@ -34,7 +34,7 @@ class Deprecation(str):
     version_deprecated: LiteralString
     _docmsg: str | None = None
 
-    def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> LiteralString:  # type: ignore[misc]  # typing.Intersection doesn’t exist yet
+    def __new__(cls, version_deprecated: LiteralString, msg: LiteralString = "") -> Deprecation:
         if not msg:
             msg = ""  # be lenient here, people don’t want to see “None” or “False” here
         obj = super().__new__(cls, msg)

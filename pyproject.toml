@@ -26,12 +26,12 @@ dependencies = [
   "session-info2",
   "typing-extensions; python_version<'3.13'",
 ]
-optional-dependencies.datasets = [ "pooch", "pyyaml", "tqdm" ]
+optional-dependencies.datasets = [ "anndata", "pooch", "pyyaml", "tqdm" ]
 optional-dependencies.logging = [ "pydantic" ]
 optional-dependencies.rich = [ "rich" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
-optional-dependencies.sphinx = [ "pydocstring-rs>=0.1.13", "sphinx>=9" ]
+optional-dependencies.sphinx = [ "jinja2", "pydocstring-rs>=0.4.1", "sphinx>=9" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
 urls.Homepage = "https://github.com/scverse/scverse-misc"
@@ -39,20 +39,12 @@ urls.Source = "https://github.com/scverse/scverse-misc"
 
 [dependency-groups]
 dev = [
-  "pre-commit",
+  "prek",
   "twine>=4.0.2",
 ]
-test = [
-  "anndata",                                # exercises the built-in anndata dataset loader; not a package dependency
-  "coverage>=7.10",
-  "numpy",
-  "pytest",
-  "scverse-misc[datasets,logging,rich,settings,sphinx]",  # rich: exercise the rich handler tier
-  "sphinx",
-  "sphinx-autodoc-typehints"
-]
+test = [ "coverage>=7.10", "pytest" ]
 doc = [
-  "anndata",                                # resolves the anndata loader's type hints during doc builds
+  "anndata",                                        # resolves the anndata loader's type hints during doc builds
   "ipykernel",
   "ipython",
   "myst-nb>=1.1",
@@ -79,14 +71,28 @@ envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 envs.docs.dependency-groups = [ "doc" ]
 envs.hatch-test.matrix = [
   # Test the lowest and highest supported Python versions with normal deps
-  { deps = [ "stable" ], python = [ "3.12", "3.13", "3.14" ] },
+  { deps = [ "stable" ], python = [ "3.12", "3.13", "3.14" ], feature-set = [ "full" ] },
+  # Test the newest supported Python version with different feature sets
+  { deps = [ "stable" ], python = [ "3.14" ], feature-set = [ "min", "sphinx" ] },
   # Test the newest supported Python version also with pre-release deps
-  { deps = [ "pre" ], python = [ "3.14" ] },
+  { deps = [ "pre" ], python = [ "3.14" ], feature-set = [ "full" ] },
 ]
 # If the matrix variable `deps` is set to "pre",
 # set the environment variable `UV_PRERELEASE` to "allow".
 envs.hatch-test.overrides.matrix.deps.env-vars = [
   { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
+]
+envs.hatch-test.overrides.matrix.feature-set.extra-dependencies = [
+  { value = "sphinx-autodoc-typehints", if = [ "sphinx", "full" ] },
+]
+envs.hatch-test.overrides.matrix.feature-set.features = [
+  # make sure the sphinx extension works without having all deps
+  { value = "sphinx", if = [ "sphinx", "full" ] },
+  { value = "datasets", if = [ "full" ] },
+  { value = "spatialdata", if = [ "full" ] },
+  { value = "settings", if = [ "full" ] },
+  { value = "logging", if = [ "full" ] },  # pydantic tier of the logging config
+  { value = "rich", if = [ "full" ] },  # exercise the rich handler tier
 ]
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
 
@@ -146,11 +152,11 @@ strict = true
 testpaths = [ "tests" ]
 
 [tool.coverage]
+run.source = [ "scverse_misc" ]
 run.omit = [
   "**/test_*.py",
 ]
 run.patch = [ "subprocess" ]
-run.source = [ "scverse_misc" ]
 
 [tool.cruft]
 skip = [

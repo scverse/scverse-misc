@@ -7,7 +7,11 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
-from pydantic import ValidationError
+
+try:  # the config's pydantic tier (and these assertions) need pydantic
+    from pydantic import ValidationError
+except ImportError:
+    pytest.skip("logging config's pydantic tier needs pydantic", allow_module_level=True)
 
 from scverse_misc import logging as mod
 from scverse_misc.logging import Deep, Elapsed, Rule, TimedLogger, config, get_logger
@@ -33,7 +37,7 @@ def sink() -> Generator[io.StringIO, None, None]:
     finally:
         # drop any rules a test added, then restore level + rich (reinstalls a clean handler)
         for rule in list(config._rules):
-            if rule not in old_rules:
+            if isinstance(rule, Rule) and rule not in old_rules:
                 config.remove_rule(rule)
         config._root.setLevel(old_level)
         config.rich = old_rich

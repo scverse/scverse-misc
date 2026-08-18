@@ -2,20 +2,24 @@ from __future__ import annotations
 
 import sys
 import types
+from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
-from scverse_misc.datasets import (
-    DatasetEntry,
-    FileEntry,
-    _fetcher,
-    available_loaders,
-    fetch,
-    parse_registry,
-    register_loader,
-)
+try:
+    from scverse_misc.datasets import (
+        DatasetEntry,
+        FileEntry,
+        _fetcher,
+        available_loaders,
+        fetch,
+        parse_registry,
+        register_loader,
+    )
+except ImportError:
+    pytest.skip("missing dependencies", allow_module_level=True)
 
 if TYPE_CHECKING:
     from scverse_misc.datasets import DownloadCB
@@ -119,6 +123,7 @@ def test_unknown_loader(registry: dict[str, DatasetEntry], tmp_path: Path) -> No
         fetch(registry["toy"], tmp_path)
 
 
+@pytest.mark.skipif(not find_spec("pooch"), reason="requires pooch")
 def test_download_drives_pooch(
     registry: dict[str, DatasetEntry], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -153,6 +158,7 @@ def test_download_drives_pooch(
 
 
 # old anndata versions use the old arguments
+@pytest.mark.skipif(not find_spec("pooch"), reason="requires pooch")
 @pytest.mark.filterwarnings(
     r"ignore:The (decorator_name|docstring_style|exported_object_name)( class)? argument is deprecated:DeprecationWarning"
 )
@@ -165,6 +171,7 @@ def test_load_anndata_reads_h5ad(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     assert result == ("adata", "/cache/toy.h5ad", {"backed": "r"})
 
 
+@pytest.mark.skipif(not find_spec("pooch"), reason="requires pooch")
 def test_load_spatialdata_reads_zarr(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     fake_sd = types.ModuleType("spatialdata")
     fake_sd.read_zarr = lambda path, **kw: ("sdata", path)  # type: ignore[attr-defined]
