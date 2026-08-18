@@ -188,16 +188,21 @@ def test_timed_logger_delegates_unknown_attrs() -> None:
 
 def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
     """With pydantic absent, logging falls back to the stdlib config tier."""
-    import importlib
+    import importlib.util
     import sys
 
     root = logging.getLogger("scverse")
     saved_handlers, saved_level = list(root.handlers), root.level
 
-    # make `from pydantic import ...` raise ImportError inside logging.py
+    # Load a *fresh, isolated* copy of the module with pydantic unavailable. Reloading
+    # scverse_misc.logging in place would rebind its classes, breaking other tests'
+    # already-bound `from scverse_misc.logging import TimedLogger` references.
     monkeypatch.setitem(sys.modules, "pydantic", None)
+    spec = importlib.util.spec_from_file_location("scverse_misc._logging_nopydantic", mod.__file__)
+    assert spec is not None and spec.loader is not None
+    reduced = importlib.util.module_from_spec(spec)
     try:
-        reduced = importlib.reload(mod)
+        spec.loader.exec_module(reduced)  # its `config = _LogConfig()` mutates the shared logger
         assert reduced._HAVE_PYDANTIC is False
 
         cfg = reduced.config
@@ -217,8 +222,7 @@ def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
         assert tag not in cfg._rules  # regression: reduced tier used to resurrect removed rules
     finally:
         monkeypatch.undo()
-        importlib.reload(mod)  # restore the full tier for the rest of the suite
-        root.handlers[:] = saved_handlers
+        root.handlers[:] = saved_handlers  # undo the shared-logger mutation from loading `reduced`
         root.setLevel(saved_level)
 
 
