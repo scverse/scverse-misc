@@ -27,6 +27,7 @@ dependencies = [
   "typing-extensions; python_version<'3.13'",
 ]
 optional-dependencies.datasets = [ "pooch", "pyyaml", "tqdm" ]
+optional-dependencies.logging = [ "pydantic" ]
 optional-dependencies.rich = [ "rich" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
@@ -46,7 +47,7 @@ test = [
   "coverage>=7.10",
   "numpy",
   "pytest",
-  "scverse-misc[datasets,settings,sphinx]",
+  "scverse-misc[datasets,logging,rich,settings,sphinx]",  # rich: exercise the rich handler tier
   "sphinx",
   "sphinx-autodoc-typehints"
 ]
@@ -56,7 +57,7 @@ doc = [
   "ipython",
   "myst-nb>=1.1",
   "pandas",
-  "scverse-misc[datasets,settings,sphinx]",
+  "scverse-misc[datasets,logging,settings,sphinx]",
   "sphinx>=8.1",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",

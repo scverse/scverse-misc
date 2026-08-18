@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import sys
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,7 @@ def sink() -> Generator[io.StringIO, None, None]:
     """Force the plain handler, capture its output, and restore global state after."""
     old_level = config._root.level
     old_rules = list(config._rules)
+    old_rich = config.rich
     config.rich = False
     handler = config._root.handlers[0]
     assert isinstance(handler, logging.StreamHandler)
@@ -29,11 +31,15 @@ def sink() -> Generator[io.StringIO, None, None]:
     try:
         yield buf
     finally:
-        # drop any rules a test added, then restore level + a clean plain handler
+        # drop any rules a test added, then restore level + rich (reinstalls a clean handler)
         for rule in list(config._rules):
             if rule not in old_rules:
                 config.remove_rule(rule)
         config._root.setLevel(old_level)
+        config.rich = old_rich
+        restored = config._root.handlers[0]
+        if isinstance(restored, logging.StreamHandler):
+            restored.setStream(sys.stderr)  # drop the dead StringIO the test wrote into
 
 
 def test_get_logger_plain_naming() -> None:
@@ -132,26 +138,18 @@ def test_verbosity_get_set_by_name_and_int() -> None:
     assert plain.isEnabledFor(logging.DEBUG)
 
 
+def test_verbosity_default_is_canonical() -> None:
+    # pydantic tier must canonicalize its default too (regression: used to report lowercase "warning")
+    assert mod._LogConfig().verbosity == "WARNING"
+    config.verbosity = "warning"  # construction re-applied to the shared logger; leave a known state
+
+
 def test_verbosity_rejects_unknown_level() -> None:
     config.verbosity = "warning"
     for bad in ("bogus", 999):
         with pytest.raises(ValidationError):
             config.verbosity = bad
     assert config.verbosity == "WARNING"  # rejected assignment leaves the value untouched
-
-
-def test_override_restores_verbosity() -> None:
-    config.verbosity = "warning"
-    with config.override(verbosity="debug"):
-        assert config.verbosity == "DEBUG"
-        assert logging.getLogger("scverse").level == logging.DEBUG
-    assert config.verbosity == "WARNING"
-
-
-def test_env_var_sets_verbosity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SCVERSE_MISC_VERBOSITY", "info")
-    assert mod._LogConfig().verbosity == "INFO"
-    config.verbosity = "warning"  # construction set the shared logger; restore it
 
 
 def test_universal_rules_enabled_by_default() -> None:
@@ -184,22 +182,21 @@ def test_timed_logger_delegates_unknown_attrs() -> None:
     assert log.getEffectiveLevel() == logging.getLogger("scverse.selftest").getEffectiveLevel()
 
 
-def test_reduced_tier_without_pydantic_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With pydantic-settings absent, logging falls back to the stdlib config tier."""
+def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With pydantic absent, logging falls back to the stdlib config tier."""
     import importlib
     import sys
 
     root = logging.getLogger("scverse")
     saved_handlers, saved_level = list(root.handlers), root.level
 
-    # make `from ._settings import Settings` raise ImportError inside logging.py
-    monkeypatch.setitem(sys.modules, "scverse_misc._settings", None)
+    # make `from pydantic import ...` raise ImportError inside logging.py
+    monkeypatch.setitem(sys.modules, "pydantic", None)
     try:
         reduced = importlib.reload(mod)
-        assert reduced._HAVE_SETTINGS is False
+        assert reduced._HAVE_PYDANTIC is False
 
         cfg = reduced.config
-        assert not hasattr(cfg, "override")  # override/reset are full-tier (settings) only
         assert cfg.rich is None  # default matches the full tier (None = auto-detect)
 
         cfg.verbosity = "info"

@@ -10,11 +10,8 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
-## [0.0.9]
-
 ### Added
 
-- A Sphinx extension to take care of documentation. This moves docstring processing from import time to documentation building time.
 - A reusable `datasets` subpackage (behind the `datasets` extra): typed `DatasetEntry`/
   `FileEntry` + `parse_registry` (YAML), a thin pooch-based `fetch` (SHA-256 verification,
   retries, archive processors), and a pluggable `type -> loader` registry
@@ -25,8 +22,14 @@ and this project adheres to [Semantic Versioning][].
 - A shared `logging` module: one `scverse` parent logger with a single handler (rich if
   installed, else plain), package loggers as children, a `Rule` extension point for
   filtering/rewriting output, and an opt-in scanpy-style `TimedLogger`. Works with no extra
-  dependencies; installing `scverse-misc[settings]` additionally enables `SCVERSE_MISC_*`
-  env-var loading and `override`/`reset` for the logging config.
+  dependencies; installing `scverse-misc[logging]` (i.e. `pydantic`) additionally gives
+  validate-on-assignment for the `verbosity`/`rich` config fields.
+
+## [0.0.9]
+
+### Added
+
+- A Sphinx extension to take care of documentation. This moves docstring processing from import time to documentation building time.
 
 ### Changed
 
@@ -34,7 +37,7 @@ and this project adheres to [Semantic Versioning][].
 
 ### Fixed
 
-- Marking a setting as `Field(deprecated=...)` will show a deprecation notice in the documentaiton.
+- Marking a setting as `Field(deprecated=...)` will show a deprecation notice in the documentation.
 
 ## [0.0.8]
 

@@ -91,10 +91,14 @@ class Deep(Rule):
 
 def _make_handler(use_rich: bool) -> logging.Handler:
     if use_rich:
+        if not _rich_available():
+            raise ImportError("rich is not installed; install scverse-misc[rich] or leave config.rich as None/False")
+        from rich.console import Console
         from rich.logging import RichHandler
 
-        return RichHandler(show_path=False, show_time=False)  # rich renders the level itself
-    handler = logging.StreamHandler()
+        # stderr to match the plain handler (and scanpy); rich renders the level itself
+        return RichHandler(console=Console(stderr=True), show_path=False, show_time=False)
+    handler = logging.StreamHandler()  # defaults to stderr
     handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
     return handler
 
@@ -106,17 +110,15 @@ def _rich_available() -> bool:
 
 
 # The shared ``scverse`` logger is the single source of truth for live state;
-# both config tiers drive it through the helpers below. The full tier additionally
-# needs pydantic-settings (via the shared Settings base) for env-var loading
-# (SCVERSE_MISC_*) and the override()/reset() context managers.
+# both config tiers drive it through the helpers below. The full tier adds
+# pydantic validate-on-assignment for verbosity/rich (install scverse-misc[logging]);
+# without pydantic the reduced tier keeps the same behavior via plain properties.
 try:
-    from pydantic import field_validator, model_validator
+    from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-    from ._settings import Settings
-
-    _HAVE_SETTINGS = True
+    _HAVE_PYDANTIC = True
 except ImportError:
-    _HAVE_SETTINGS = False
+    _HAVE_PYDANTIC = False
 
 
 def _canonical_level(value: str | int) -> str:
@@ -185,17 +187,18 @@ class _RuleAccess:
         _remove_rule(rule)
 
 
-if _HAVE_SETTINGS:
+if _HAVE_PYDANTIC:
 
-    class _LogConfig(Settings, _RuleAccess):
+    class _LogConfig(BaseModel, _RuleAccess):
         """Central logging configuration; the singleton instance is :data:`config`.
 
-        Subclasses :class:`~scverse_misc.Settings`, so values also load from
-        environment variables (prefix ``SCVERSE_MISC_``) and support the inherited
-        :meth:`override`/:meth:`reset` context managers. Install
-        ``scverse-misc[settings]`` to get this tier; without it the reduced tier
-        keeps verbosity/rich/rules but drops env-var loading and override/reset.
+        A pydantic model, so ``verbosity``/``rich`` are validated on assignment.
+        Available when ``scverse-misc[logging]`` (i.e. ``pydantic``) is installed;
+        without it the reduced tier keeps the same verbosity/rich/rules behavior
+        via plain properties.
         """
+
+        model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
         verbosity: str | int = "warning"
         """Central level for all scverse loggers; a level name (``"info"``) or an int."""
@@ -220,9 +223,9 @@ else:
     class _LogConfig(_RuleAccess):  # type: ignore[no-redef]
         """Central logging configuration; the singleton instance is :data:`config`.
 
-        Reduced tier, used when ``pydantic-settings`` is absent. Logging works
-        fully (verbosity, rich toggle, rules); install ``scverse-misc[settings]``
-        to also load ``SCVERSE_MISC_*`` env vars and get ``override``/``reset``.
+        Reduced tier, used when ``pydantic`` is absent. Logging works fully
+        (verbosity, rich toggle, rules); install ``scverse-misc[logging]`` to
+        get pydantic-based validate-on-assignment for the config fields.
         """
 
         def __init__(self) -> None:
@@ -245,8 +248,8 @@ else:
 
         @rich.setter
         def rich(self, enabled: bool | None) -> None:
-            self._rich = enabled
-            _reinstall(self.verbosity, enabled)
+            self._rich = None if enabled is None else bool(enabled)  # match the pydantic tier's coercion
+            _reinstall(self.verbosity, self._rich)
 
 
 config = _LogConfig()
