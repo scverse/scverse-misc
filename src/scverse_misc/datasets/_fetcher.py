@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
-from contextlib import suppress
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
@@ -107,6 +106,7 @@ def fetch[T](
             urls={file.name: file.resolve_url(base_url)},
             retry_if_failed=retries,
         )
+        exceptions = []
         try:
             return pup.fetch(file.name, processor=processor, progressbar=True)
         except (OSError, ValueError) as e:
@@ -115,10 +115,13 @@ def fetch[T](
             warnings.warn(
                 f"Primary download for {file.name}, failed with {e!r}, retrying with fallback URLs.", stacklevel=3
             )
+            exceptions.append(e)
             for fallback in file.fallback_urls:
-                with suppress(OSError, ValueError):
+                try:
                     return download(replace(file, url=fallback, fallback_urls=None), dest=dest, processor=processor)
-            raise
+                except (OSError, ValueError) as e:
+                    exceptions.append(e)
+            raise ExceptionGroup(f"Could not download {file.name}", exceptions) from None
 
     if entry.type not in _LOADERS:
         raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")
