@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
@@ -94,7 +95,7 @@ def fetch[T](
     """
     target = Path(cache_dir) / entry.type
 
-    def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:  # type: ignore[return]
+    def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:
         import pooch
 
         out = dest or target
@@ -115,7 +116,9 @@ def fetch[T](
                 f"Primary download for {file.name}, failed with {e!r}, retrying with fallback URLs.", stacklevel=3
             )
             for fallback in file.fallback_urls:
-                return download(replace(file, url=fallback, fallback_urls=None), dest=dest, processor=processor)
+                with suppress(OSError, ValueError):
+                    return download(replace(file, url=fallback, fallback_urls=None), dest=dest, processor=processor)
+            raise
 
     if entry.type not in _LOADERS:
         raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")
