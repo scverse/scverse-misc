@@ -17,19 +17,22 @@ __all__ = ["FileEntry", "DatasetEntry", "parse_registry"]
 
 @dataclass(frozen=True, slots=True)
 class FileEntry:
-    """A single downloadable file belonging to a dataset.
-
-    Args:
-        name: File name as it should appear on disk (e.g. ``"cells.zip"``).
-        url: Full download URL (e.g. a Zenodo file URL). Takes precedence over ``s3_key``.
-        s3_key: Key relative to the registry's ``base_url``. Used when ``url`` is unset.
-        sha256: Expected SHA-256 hash. If set, downloads are verified against it.
-    """
+    """A single downloadable file belonging to a dataset."""
 
     name: str
+    """File name as it should appear on disk (e.g. ``"cells.zip"``)."""
+
     url: str | None = None
+    """Full download URL (e.g. a Zenodo file URL). Takes precedence over ``s3_key``."""
+
     s3_key: str | None = None
+    """Key relative to the registry's ``base_url``. Used when ``url`` is unset."""
+
     sha256: str | None = None
+    """Expected SHA-256 hash. If set, downloads are verified against it."""
+
+    fallback_urls: list[str] | None = None
+    """List of fallback download URLs to use in case the primary URL or the S3 bucket fail."""
 
     def resolve_url(self, base_url: str | None = None) -> str:
         """Resolve the download URL: the explicit ``url`` if set, else ``base_url/s3_key``."""
@@ -89,7 +92,7 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
     """Parse a YAML registry into ``(base_url, {name: DatasetEntry})``.
 
     The YAML has a top-level ``base_url`` (or ``s3_base_url``) and a ``datasets`` mapping of
-    ``name -> {type, files: [{name, url?/s3_key?, sha256?}], ...}``. Any keys other than ``type``
+    ``name -> {type, files: [{name, url?/s3_key?, sha256?, fallback_urls?}], ...}``. Any keys other than ``type``
     and ``files`` are collected into the entry's ``metadata``.
 
     Examples:
@@ -105,6 +108,9 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
                  - name: example1.h5ad
                    s3_key: ABCDEFGH.h5ad
                    sha256: 86126c1a3c163ea20abb14c1a9711aaff34e6c492ef6dd86298bbaf18cc3f5f3
+                  fallback_urls:
+                    - https://example.org/fallbackdata/ABCDEFGH.h5ad
+                    - https://example.net/data/ABCDEFGH.h5ad
 
               example2:
                 type: anndata

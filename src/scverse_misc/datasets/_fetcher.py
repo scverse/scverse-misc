@@ -7,11 +7,11 @@ retries, and archive processors). ``anndata`` and ``spatialdata`` loaders ship b
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
-
-import pooch
 
 if TYPE_CHECKING:
     from pooch.typing import Processor
@@ -88,10 +88,15 @@ def fetch[T](
         base_url: The base URL.
         retries: Number of attempts before failure.
         **kwargs: Passed to the loader.
+
+    Returns:
+        The absolte path of the downloaded file.
     """
     target = Path(cache_dir) / entry.type
 
-    def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:
+    def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:  # type: ignore[return]
+        import pooch
+
         out = dest or target
         out.mkdir(parents=True, exist_ok=True)
         pup = pooch.create(
@@ -101,7 +106,16 @@ def fetch[T](
             urls={file.name: file.resolve_url(base_url)},
             retry_if_failed=retries,
         )
-        return pup.fetch(file.name, processor=processor, progressbar=True)
+        try:
+            return pup.fetch(file.name, processor=processor, progressbar=True)
+        except (OSError, ValueError) as e:
+            if not file.fallback_urls:
+                raise
+            warnings.warn(
+                f"Primary download for {file.name}, failed with {e!r}, retrying with fallback URLs.", stacklevel=3
+            )
+            for fallback in file.fallback_urls:
+                return download(replace(file, url=fallback, fallback_urls=None), dest=dest, processor=processor)
 
     if entry.type not in _LOADERS:
         raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")
@@ -124,6 +138,7 @@ def _load_spatialdata(entry: DatasetEntry, target: Path, download: DownloadCB, /
     the registry key) without colliding with other spatialdata datasets cached under the same ``target``.
     Needs the ``spatialdata`` extra.
     """
+    import pooch
     import spatialdata as sd
 
     dest = target / entry.name
