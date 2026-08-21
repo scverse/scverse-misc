@@ -19,16 +19,11 @@ __all__ = ["FileEntry", "DatasetEntry", "parse_registry"]
 class FileEntry:
     """A single downloadable file belonging to a dataset.
 
-    Parameters
-    ----------
-    name
-        File name as it should appear on disk (e.g. ``"cells.zip"``).
-    url
-        Full download URL (e.g. a Zenodo file URL). Takes precedence over ``s3_key``.
-    s3_key
-        Key relative to the registry's ``base_url``. Used when ``url`` is unset.
-    sha256
-        Expected SHA-256 hash. If set, downloads are verified against it.
+    Args:
+        name: File name as it should appear on disk (e.g. ``"cells.zip"``).
+        url: Full download URL (e.g. a Zenodo file URL). Takes precedence over ``s3_key``.
+        s3_key: Key relative to the registry's ``base_url``. Used when ``url`` is unset.
+        sha256: Expected SHA-256 hash. If set, downloads are verified against it.
     """
 
     name: str
@@ -47,16 +42,19 @@ class FileEntry:
 
 @dataclass(frozen=True, slots=True)
 class DatasetEntry:
-    """A named dataset made up of one or more files.
-
-    ``metadata`` holds everything in the YAML row other than ``type`` and ``files``
-    (e.g. ``shape``, ``library_id``, ``doc_header``); the core does not interpret it.
-    """
+    """A named dataset made up of one or more files."""
 
     name: str
+    """File name on disk."""
+
     type: str
+    """Entry type, e.g. `"anndata`"."""
+
     files: tuple[FileEntry, ...]
+    """The files for this dataset."""
+
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    """Everything in the YAML other than ``type`` and ``files``."""
 
     def file(self, *, name: str | None = None, suffix: str | None = None) -> FileEntry:
         """Return the file matching ``name`` (exact) or ``suffix`` (endswith). Raises unless exactly one matches."""
@@ -93,6 +91,27 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
     The YAML has a top-level ``base_url`` (or ``s3_base_url``) and a ``datasets`` mapping of
     ``name -> {type, files: [{name, url?/s3_key?, sha256?}], ...}``. Any keys other than ``type``
     and ``files`` are collected into the entry's ``metadata``.
+
+    Examples:
+        .. code-block:: yaml
+
+           base_url: https://example.com/data
+
+           datasets:
+
+             example1:
+               type: anndata
+               files:
+                 - name: example1.h5ad
+                   s3_key: ABCDEFGH.h5ad
+                   sha256: 86126c1a3c163ea20abb14c1a9711aaff34e6c492ef6dd86298bbaf18cc3f5f3
+
+              example2:
+                type: anndata
+                files:
+                  - name: example2.h5ad
+                    url: https://example.com/otherdata/DEFGHI.h5ad
+                    sha256: e7b358fef2b6da115b7ee3ab4c7fc55fd80e210bba427902e4afc9118992747c
     """
     with open(path) as f:
         config = yaml.safe_load(f) or {}

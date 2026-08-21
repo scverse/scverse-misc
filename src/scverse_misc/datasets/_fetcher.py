@@ -11,18 +11,16 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
+import pooch
+
 if TYPE_CHECKING:
+    from pooch.typing import Processor
+
     from ._registry import DatasetEntry, FileEntry
 
     if TYPE_CHECKING:  # sphinx tries to import the above TYPE_CHECKING block
         from anndata import AnnData
-        from pooch.typing import Processor
         from spatialdata import SpatialData
-    else:
-        from typing import TypeAliasType
-
-        # TypeAliasType.__module__ is readonly, so we have to be a bit creative.
-        Processor = eval('A("Processor", object)', globals=dict(__name__="pooch.typing", A=TypeAliasType))
 
 
 __all__ = ["register_loader", "available_loaders", "fetch", "Loader", "DownloadCB"]
@@ -82,13 +80,18 @@ def fetch[T](
 ) -> T:  # type: ignore[type-var]
     """Download (if needed) and load ``entry``, dispatching to the loader registered for ``entry.type``.
 
-    Files are cached under ``cache_dir / entry.type``. ``kwargs`` are passed to the loader.
+    Files are cached under ``cache_dir / entry.type``.
+
+    Args:
+        entry: File to download.
+        cache_dir: Directory to download to.
+        base_url: The base URL.
+        retries: Number of attempts before failure.
+        **kwargs: Passed to the loader.
     """
     target = Path(cache_dir) / entry.type
 
     def download(file: FileEntry, /, dest: Path | None = None, processor: Processor | None = None) -> str:
-        import pooch
-
         out = dest or target
         out.mkdir(parents=True, exist_ok=True)
         pup = pooch.create(
@@ -121,7 +124,6 @@ def _load_spatialdata(entry: DatasetEntry, target: Path, download: DownloadCB, /
     the registry key) without colliding with other spatialdata datasets cached under the same ``target``.
     Needs the ``spatialdata`` extra.
     """
-    import pooch
     import spatialdata as sd
 
     dest = target / entry.name
