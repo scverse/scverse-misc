@@ -38,6 +38,7 @@ datasets:
         sha256: abc123
         fallback_urls:
           - https://fallback.invalid/data/toy.h5ad
+          - https://fallback2.invalid/data/toy.h5ad
   remote:
     type: dummy
     files:
@@ -158,12 +159,12 @@ def test_download_drives_pooch(
 
 
 def test_fallback_urls(registry: dict[str, DatasetEntry], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    tried = False
+    tried = 0
 
     def fake_fetch(self: pooch.Pooch, name: str, *args: object, **kwargs: object) -> str:
         nonlocal tried
-        if not tried:
-            tried = True
+        if tried < 2:
+            tried += 1
             raise OSError()
         else:
             return name
