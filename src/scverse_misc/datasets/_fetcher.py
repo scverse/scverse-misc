@@ -113,7 +113,7 @@ def fetch[T](
             if not file.fallback_urls:
                 raise
             warnings.warn(
-                f"Primary download for {file.name}, failed with {e!r}, retrying with fallback URLs.", stacklevel=3
+                f"Primary download for {file.name} failed with {e!r}, retrying with fallback URLs.", stacklevel=3
             )
             exceptions.append(e)
             for fallback in file.fallback_urls:
