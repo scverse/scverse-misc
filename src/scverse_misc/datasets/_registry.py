@@ -108,9 +108,9 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
                  - name: example1.h5ad
                    s3_key: ABCDEFGH.h5ad
                    sha256: 86126c1a3c163ea20abb14c1a9711aaff34e6c492ef6dd86298bbaf18cc3f5f3
-                    fallback_urls:
-                      - https://example.org/fallbackdata/ABCDEFGH.h5ad
-                      - https://example.net/data/ABCDEFGH.h5ad
+                   fallback_urls:
+                     - https://example.org/fallbackdata/ABCDEFGH.h5ad
+                     - https://example.net/data/ABCDEFGH.h5ad
 
               example2:
                 type: anndata
