@@ -96,21 +96,21 @@ def parse_registry(path: PathLike[str] | str) -> tuple[str | None, dict[str, Dat
     and ``files`` are collected into the entry's ``metadata``.
 
     Examples:
-        .. code-block:: yaml
+        ..  code-block:: yaml
 
-           base_url: https://example.com/data
+            base_url: https://example.com/data
 
-           datasets:
+            datasets:
 
-             example1:
-               type: anndata
-               files:
-                 - name: example1.h5ad
-                   s3_key: ABCDEFGH.h5ad
-                   sha256: 86126c1a3c163ea20abb14c1a9711aaff34e6c492ef6dd86298bbaf18cc3f5f3
-                   fallback_urls:
-                     - https://example.org/fallbackdata/ABCDEFGH.h5ad
-                     - https://example.net/data/ABCDEFGH.h5ad
+              example1:
+                type: anndata
+                files:
+                  - name: example1.h5ad
+                    s3_key: ABCDEFGH.h5ad
+                    sha256: 86126c1a3c163ea20abb14c1a9711aaff34e6c492ef6dd86298bbaf18cc3f5f3
+                    fallback_urls:
+                      - https://example.org/fallbackdata/ABCDEFGH.h5ad
+                      - https://example.net/data/ABCDEFGH.h5ad
 
               example2:
                 type: anndata
