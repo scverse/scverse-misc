@@ -7,22 +7,20 @@ retries, and archive processors). ``anndata`` and ``spatialdata`` loaders ship b
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
+    from pooch.typing import Processor
+
     from ._registry import DatasetEntry, FileEntry
 
     if TYPE_CHECKING:  # sphinx tries to import the above TYPE_CHECKING block
         from anndata import AnnData
-        from pooch.typing import Processor
         from spatialdata import SpatialData
-    else:
-        from typing import TypeAliasType
-
-        # TypeAliasType.__module__ is readonly, so we have to be a bit creative.
-        Processor = eval('A("Processor", object)', globals=dict(__name__="pooch.typing", A=TypeAliasType))
 
 
 __all__ = ["register_loader", "available_loaders", "fetch", "Loader", "DownloadCB"]
@@ -82,7 +80,17 @@ def fetch[T](
 ) -> T:  # type: ignore[type-var]
     """Download (if needed) and load ``entry``, dispatching to the loader registered for ``entry.type``.
 
-    Files are cached under ``cache_dir / entry.type``. ``kwargs`` are passed to the loader.
+    Files are cached under ``cache_dir / entry.type``.
+
+    Args:
+        entry: File to download.
+        cache_dir: Directory to download to.
+        base_url: The base URL.
+        retries: Number of attempts before failure.
+        **kwargs: Passed to the loader.
+
+    Returns:
+        The absolte path of the downloaded file.
     """
     target = Path(cache_dir) / entry.type
 
@@ -98,7 +106,22 @@ def fetch[T](
             urls={file.name: file.resolve_url(base_url)},
             retry_if_failed=retries,
         )
-        return pup.fetch(file.name, processor=processor, progressbar=True)
+        exceptions = []
+        try:
+            return pup.fetch(file.name, processor=processor, progressbar=True)
+        except (OSError, ValueError) as e:
+            if not file.fallback_urls:
+                raise
+            warnings.warn(
+                f"Primary download for {file.name} failed with {e!r}, retrying with fallback URLs.", stacklevel=3
+            )
+            exceptions.append(e)
+            for fallback in file.fallback_urls:
+                try:
+                    return download(replace(file, url=fallback, fallback_urls=None), dest=dest, processor=processor)
+                except (OSError, ValueError) as e:
+                    exceptions.append(e)
+            raise ExceptionGroup(f"Could not download {file.name}", exceptions) from None
 
     if entry.type not in _LOADERS:
         raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")

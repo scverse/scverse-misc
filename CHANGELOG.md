@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
+## [0.1.4] (Unreleased)
+
+### Added
+
+- The `datasets` module can now download files from fallback URLs if a download from the primary URL fails.
+
 ## [0.1.3]
 
 ### Fixed
@@ -115,7 +121,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
-[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.3...HEAD
+[0.1.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.4
 [0.1.3]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.3
 [0.1.2]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.2
 [0.1.1]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.1
