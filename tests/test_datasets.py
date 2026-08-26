@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import sys
 import types
-from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 try:
+    import pooch
+
     from scverse_misc.datasets import (
         DatasetEntry,
         FileEntry,
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 
 
 _YAML = """\
-base_url: https://example.org/data/
+base_url: https://example.invalid/data/
 datasets:
   toy:
     type: dummy
@@ -35,6 +36,9 @@ datasets:
       - name: toy.h5ad
         s3_key: toy.h5ad
         sha256: abc123
+        fallback_urls:
+          - https://fallback.invalid/data/toy.h5ad
+          - https://fallback2.invalid/data/toy.h5ad
   remote:
     type: dummy
     files:
@@ -48,7 +52,7 @@ def registry(tmp_path: Path) -> dict[str, DatasetEntry]:
     p = tmp_path / "datasets.yaml"
     p.write_text(_YAML)
     base_url, datasets = parse_registry(p)
-    assert base_url == "https://example.org/data/"
+    assert base_url == "https://example.invalid/data/"
     return datasets
 
 
@@ -123,7 +127,6 @@ def test_unknown_loader(registry: dict[str, DatasetEntry], tmp_path: Path) -> No
         fetch(registry["toy"], tmp_path)
 
 
-@pytest.mark.skipif(not find_spec("pooch"), reason="requires pooch")
 def test_download_drives_pooch(
     registry: dict[str, DatasetEntry], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -138,8 +141,6 @@ def test_download_drives_pooch(
     def fake_create(**kw: object) -> FakePup:
         calls.update(kw)
         return FakePup()
-
-    import pooch
 
     monkeypatch.setattr(pooch, "create", fake_create)
 
@@ -157,8 +158,31 @@ def test_download_drives_pooch(
     assert calls["fetched"] == "toy.h5ad"
 
 
+def test_fallback_urls(registry: dict[str, DatasetEntry], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tried = 0
+
+    def fake_fetch(self: pooch.Pooch, name: str, *args: object, **kwargs: object) -> str:
+        nonlocal tried
+        if tried < 2:
+            tried += 1
+            raise OSError()
+        else:
+            return name
+
+    monkeypatch.setattr(pooch.Pooch, "fetch", fake_fetch)
+
+    @register_loader("dummy")
+    def _load(entry: DatasetEntry, target: Path, download: DownloadCB, /, **kw: object) -> str:
+        return download(entry.files[0])
+
+    with pytest.warns(UserWarning, match="retrying with fallback URLs"):
+        try:
+            assert fetch(registry["toy"], tmp_path, base_url="https://test.invalid") == registry["toy"].files[0].name
+        finally:
+            _fetcher._LOADERS.pop("dummy", None)
+
+
 # old anndata versions use the old arguments
-@pytest.mark.skipif(not find_spec("pooch"), reason="requires pooch")
 @pytest.mark.filterwarnings(
     r"ignore:The (decorator_name|docstring_style|exported_object_name)( class)? argument is deprecated:DeprecationWarning"
 )
@@ -171,7 +195,6 @@ def test_load_anndata_reads_h5ad(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     assert result == ("adata", "/cache/toy.h5ad", {"backed": "r"})
 
 
-@pytest.mark.skipif(not find_spec("pooch"), reason="requires pooch")
 def test_load_spatialdata_reads_zarr(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     fake_sd = types.ModuleType("spatialdata")
     fake_sd.read_zarr = lambda path, **kw: ("sdata", path)  # type: ignore[attr-defined]

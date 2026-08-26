@@ -8,16 +8,17 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
-## [Unreleased]
+## [0.1.4] (Unreleased)
 
 ### Added
 
+- The `datasets` module can now download files from fallback URLs if a download from the primary URL fails.
 - A shared `logging` module: one `scverse` parent logger with a single handler (rich if
   installed, else plain), package loggers as children, `config.add_filter` for custom
   `logging.Filter`s, and an opt-in scanpy-style `TimedLogger`. Context (`time_passed`, `deep`)
-  travels as record attributes and is rendered by the formatter, never baked into the message. Works with no extra
-  dependencies; installing `scverse-misc[logging]` (i.e. `pydantic`) additionally gives
-  validate-on-assignment for the `verbosity`/`rich` config fields.
+  travels as record attributes and is rendered by the formatter, never baked into the message.
+  Works with no extra dependencies; installing `scverse-misc[logging]` (i.e. `pydantic`)
+  additionally gives validate-on-assignment for the `verbosity`/`rich` config fields.
 
 ## [0.1.3]
 
@@ -129,7 +130,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
-[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.3...HEAD
+[0.1.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.4
 [0.1.3]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.3
 [0.1.2]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.2
 [0.1.1]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.1
