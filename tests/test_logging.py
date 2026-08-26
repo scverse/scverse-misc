@@ -14,7 +14,7 @@ except ImportError:
     pytest.skip("logging config's pydantic tier needs pydantic", allow_module_level=True)
 
 from scverse_misc import logging as mod
-from scverse_misc.logging import Deep, Elapsed, Rule, TimedLogger, config, get_logger
+from scverse_misc.logging import TimedLogger, config, get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 def sink() -> Generator[io.StringIO, None, None]:
     """Force the plain handler, capture its output, and restore global state after."""
     old_level = config._root.level
-    old_rules = list(config._rules)
+    old_filters = list(config._filters)
     old_rich = config.rich
     config.rich = False
     handler = config._root.handlers[0]
@@ -35,10 +35,10 @@ def sink() -> Generator[io.StringIO, None, None]:
     try:
         yield buf
     finally:
-        # drop any rules a test added, then restore level + rich (reinstalls a clean handler)
-        for rule in list(config._rules):
-            if isinstance(rule, Rule) and rule not in old_rules:
-                config.remove_rule(rule)
+        # drop any filters a test added, then restore level + rich (reinstalls a clean handler)
+        for f in list(config._filters):
+            if f not in old_filters:
+                config.remove_filter(f)
         config._root.setLevel(old_level)
         config.rich = old_rich
         restored = config._root.handlers[0]
@@ -64,14 +64,10 @@ def test_timed_logger_returns_datetime(sink: io.StringIO) -> None:
     assert isinstance(t, datetime)
 
 
-def test_elapsed_substitution_and_append(sink: io.StringIO) -> None:
+def test_elapsed_appended(sink: io.StringIO) -> None:
     log = get_logger("selftest", timed=True)
-    now = datetime.now()
-    log.info("finished ({time_passed})", time=now - timedelta(seconds=5))
-    log.info("done", time=now - timedelta(seconds=2))
-    out = sink.getvalue()
-    assert "finished (0:00:05)" in out
-    assert "done (0:00:02)" in out
+    log.info("done", time=datetime.now() - timedelta(seconds=2))
+    assert "done (0:00:02)" in sink.getvalue()
 
 
 def test_elapsed_noop_without_time(sink: io.StringIO) -> None:
@@ -89,7 +85,7 @@ def test_deep_appended(sink: io.StringIO) -> None:
 
 
 def test_deep_falsy_zero_preserved(sink: io.StringIO) -> None:
-    # 0 must not be dropped by a truthiness check (Deep uses `is None`)
+    # 0 must not be dropped by a truthiness check (`is None`)
     log = get_logger("selftest", timed=True)
     log.info("count", deep=0)
     assert "count: 0" in sink.getvalue()
@@ -105,31 +101,36 @@ def test_deep_hidden_when_not_below_level(sink: io.StringIO) -> None:
     assert "hidden detail" not in out
 
 
-def test_user_rule_composes_and_verbosity_gates(sink: io.StringIO) -> None:
-    class Tag(Rule):
-        def rewrite(self, message: str, record: logging.LogRecord) -> str:
-            return f"[{record.name.rsplit('.', 1)[-1]}] {message}"
-
-    config.add_rule(Tag())
-    log = get_logger("selftest", timed=True)
-    log.warning("hi")
-    assert "[selftest] hi" in sink.getvalue()
-
-
-def test_rule_keep_can_drop_record(sink: io.StringIO) -> None:
-    class DropAll(Rule):
-        def keep(self, record: logging.LogRecord) -> bool:
+def test_user_filter_can_drop_record(sink: io.StringIO) -> None:
+    class DropAll(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
             return False
 
-    config.add_rule(DropAll())
+    config.add_filter(DropAll())
     get_logger("selftest").warning("should be dropped")
     assert sink.getvalue() == ""
 
 
-def test_base_rule_is_passthrough(sink: io.StringIO) -> None:
-    config.add_rule(Rule())  # base keep()/rewrite() are no-ops
-    get_logger("selftest").warning("unchanged")
-    assert "unchanged" in sink.getvalue()
+def test_record_message_is_not_rewritten(sink: io.StringIO) -> None:
+    # context stays in record attributes; a second (e.g. JSON) handler sees the raw message
+    seen: list[logging.LogRecord] = []
+
+    class Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            seen.append(record)
+
+    config._root.addHandler(cap := Capture())
+    try:
+        log = get_logger("selftest", timed=True)
+        log.info("finished %s", "step", time=datetime.now() - timedelta(seconds=3), deep="x")
+    finally:
+        config._root.removeHandler(cap)
+    (rec,) = seen
+    assert rec.getMessage() == "finished step"
+    assert rec.args == ("step",)
+    assert isinstance(rec.time_passed, timedelta)  # type: ignore[attr-defined]
+    assert rec.deep == "x"  # type: ignore[attr-defined]
+    assert "finished step (0:00:03): x" in sink.getvalue()
 
 
 def test_verbosity_get_set_by_name_and_int() -> None:
@@ -156,21 +157,20 @@ def test_verbosity_rejects_unknown_level() -> None:
     assert config.verbosity == "WARNING"  # rejected assignment leaves the value untouched
 
 
-def test_universal_rules_enabled_by_default() -> None:
-    assert any(isinstance(r, Elapsed) for r in config._rules)
-    assert any(isinstance(r, Deep) for r in config._rules)
+def test_extras_filter_installed_by_default() -> None:
+    assert any(isinstance(f, mod._Extras) for f in config._filters)
 
 
 def test_hint_level_registered() -> None:
     assert logging.getLevelName(mod.HINT) == "HINT"
 
 
-def test_remove_rule_is_idempotent() -> None:
-    rule = Rule()
-    config.add_rule(rule)
-    config.remove_rule(rule)
-    config.remove_rule(rule)  # removing again must not raise
-    assert rule not in config._rules
+def test_remove_filter_is_idempotent() -> None:
+    f = logging.Filter()
+    config.add_filter(f)
+    config.remove_filter(f)
+    config.remove_filter(f)  # removing again must not raise
+    assert f not in config._filters
 
 
 def test_all_level_methods_emit_and_return_datetime(sink: io.StringIO) -> None:
@@ -215,11 +215,11 @@ def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
                 cfg.verbosity = bad
         assert cfg.verbosity == "INFO"  # rejected assignment leaves the value untouched
 
-        tag = reduced.Rule()
-        cfg.add_rule(tag)
-        cfg.add_rule(tag)  # handler dedups; must not leave a phantom copy
-        cfg.remove_rule(tag)
-        assert tag not in cfg._rules  # regression: reduced tier used to resurrect removed rules
+        tag = logging.Filter()
+        cfg.add_filter(tag)
+        cfg.add_filter(tag)  # handler dedups; must not leave a phantom copy
+        cfg.remove_filter(tag)
+        assert tag not in cfg._filters  # regression: reduced tier used to resurrect removed filters
     finally:
         monkeypatch.undo()
         root.handlers[:] = saved_handlers  # undo the shared-logger mutation from loading `reduced`

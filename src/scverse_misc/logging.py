@@ -2,25 +2,22 @@
 
 Skeleton: one ``scverse`` parent logger owning a single handler (rich if
 installed, else plain), with package loggers as children. Control via
-:data:`config`. The only extension point is :class:`Rule` — subclass it to
-filter or rewrite output; register any number with :meth:`config.add_rule`.
+:data:`config`; attach any :class:`logging.Filter` with :meth:`config.add_filter`.
 
-Two **universal rules** ship enabled by default and are no-ops until a record
-carries the matching attribute:
+Records stay untouched: context travels as record attributes (``time_passed``,
+``deep``), and only the text formatter renders them. A JSON handler attached
+next to ours sees the original message plus those attributes, never a
+pre-rendered string.
 
-- :class:`Elapsed` renders ``record.time_passed`` (a ``timedelta``): substitutes
-  ``{time_passed}`` in the message, else appends ``(H:MM:SS)``.
-- :class:`Deep` appends ``record.deep`` as ``": detail"``.
-
-Because rules run on the handler, they render identically under rich and plain.
+- ``record.time_passed`` (a ``timedelta``) renders as an appended ``(H:MM:SS)``.
+- ``record.deep`` renders as an appended ``: detail``.
 
 scanpy's ``time=`` / ``deep=`` keywords and the ``-> datetime`` return are a
-call-site concern a rule cannot provide (a rule runs after the call returns),
-so they live in an **opt-in** logger: ``get_logger("scanpy", timed=True)``::
+call-site concern, so they live in an **opt-in** logger::
 
     log = get_logger("scanpy", timed=True)
     t = log.info("normalizing")  # returns a datetime
-    log.info("finished ({time_passed})", time=t)  # Elapsed rule renders it
+    log.info("finished", time=t)  # -> "finished (0:00:03)"
     log.info("done", time=t, deep="42 cells dropped")
 """
 
@@ -30,63 +27,31 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Literal, Self, cast, overload
 
-__all__ = ["Rule", "Elapsed", "Deep", "TimedLogger", "config", "get_logger"]
+__all__ = ["TimedLogger", "config", "get_logger"]
 
 _ROOT = "scverse"
 HINT = (logging.INFO + logging.DEBUG) // 2  # 15; used by the timed logger
 logging.addLevelName(HINT, "HINT")
 
 
-class Rule(logging.Filter):
-    """A logging rule — subclass and override what you need; both default to no-ops.
+class _Extras(logging.Filter):
+    """Turn the optional ``time_passed``/``deep`` record attributes into render-ready fields.
 
-    - :meth:`keep` ``(record) -> bool`` — return ``False`` to drop the record.
-    - :meth:`rewrite` ``(message, record) -> str`` — return the new text
-      (``message`` is the fully formatted string).
-
-    Rules run in registration order on the shared handler, for every package.
+    Sets ``record.elapsed`` / ``record.detail`` on *every* record (empty when absent)
+    so the ``{``-style formatter never hits a missing key. The message itself is
+    never modified.
     """
 
-    def keep(self, record: logging.LogRecord) -> bool:
-        """Return ``False`` to drop the record (default: keep everything)."""
-        return True
-
-    def rewrite(self, message: str, record: logging.LogRecord) -> str:
-        """Return the new message text (default: unchanged)."""
-        return message
-
-    def filter(self, record: logging.LogRecord) -> bool:  # stdlib hook; don't override
-        """Stdlib hook: apply :meth:`keep` then :meth:`rewrite`. Don't override."""
-        if not self.keep(record):
-            return False
-        message = record.getMessage()  # always a str, %-args already expanded
-        new = self.rewrite(message, record)
-        if new != message:
-            record.msg, record.args = new, ()
-        return True
-
-
-class Elapsed(Rule):
-    """Render ``record.time_passed`` (a ``timedelta``). Universal, enabled by default."""
-
-    def rewrite(self, message: str, record: logging.LogRecord) -> str:
-        """Substitute ``{time_passed}`` if present, else append ``(H:MM:SS)``."""
+    def filter(self, record: logging.LogRecord) -> bool:
         td = getattr(record, "time_passed", None)
-        if not td:  # None or zero -> show nothing (matches scanpy)
-            return message
-        td = timedelta(seconds=int(td.total_seconds()))  # strip sub-second noise
-        if "{time_passed}" in message:
-            return message.replace("{time_passed}", str(td))
-        return f"{message} ({td})"
-
-
-class Deep(Rule):
-    """Append ``record.deep`` as detail. Universal, enabled by default."""
-
-    def rewrite(self, message: str, record: logging.LogRecord) -> str:
-        """Append ``record.deep`` as ``": detail"`` when present."""
+        # None or zero -> nothing (matches scanpy); strip sub-second noise
+        record.elapsed = f" ({timedelta(seconds=int(td.total_seconds()))})" if td else ""
         deep = getattr(record, "deep", None)
-        return message if deep is None else f"{message}: {deep}"
+        record.detail = "" if deep is None else f": {deep}"
+        return True
+
+
+_FORMAT = "{message}{elapsed}{detail}"  # rich renders the level itself; plain prefixes it
 
 
 def _make_handler(use_rich: bool) -> logging.Handler:
@@ -96,10 +61,12 @@ def _make_handler(use_rich: bool) -> logging.Handler:
         from rich.console import Console
         from rich.logging import RichHandler
 
-        # stderr to match the plain handler (and scanpy); rich renders the level itself
-        return RichHandler(console=Console(stderr=True), show_path=False, show_time=False)
+        # stderr to match the plain handler (and scanpy)
+        handler: logging.Handler = RichHandler(console=Console(stderr=True), show_path=False, show_time=False)
+        handler.setFormatter(logging.Formatter(_FORMAT, style="{"))
+        return handler
     handler = logging.StreamHandler()  # defaults to stderr
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    handler.setFormatter(logging.Formatter(f"{{levelname}}: {_FORMAT}", style="{"))
     return handler
 
 
@@ -137,7 +104,7 @@ def _reinstall(verbosity: str | int, rich: bool | None) -> None:
     """Apply ``verbosity`` + ``rich`` to the shared ``scverse`` logger.
 
     Swaps the handler only when the rich state actually changed, carrying any
-    registered rules across; on first call it seeds the universal rules.
+    registered filters across; on first call it seeds :class:`_Extras`.
     """
     root = logging.getLogger(_ROOT)
     root.propagate = False  # one handler here; don't double-log via root
@@ -146,55 +113,45 @@ def _reinstall(verbosity: str | int, rich: bool | None) -> None:
     current = root.handlers[0] if root.handlers else None
     # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
     if current is None or isinstance(current, logging.StreamHandler) == use_rich:
-        rules = list(current.filters) if current else [Elapsed(), Deep()]  # carry rules across
+        filters = list(current.filters) if current else [_Extras()]  # carry filters across
         for h in list(root.handlers):
             root.removeHandler(h)
         handler = _make_handler(use_rich)
-        for r in rules:
-            handler.addFilter(r)
+        for f in filters:
+            handler.addFilter(f)
         root.addHandler(handler)
 
 
-def _current_rules() -> list[logging.Filter]:
-    return cast("list[logging.Filter]", logging.getLogger(_ROOT).handlers[0].filters)
-
-
-def _add_rule(rule: Rule) -> None:
-    for h in logging.getLogger(_ROOT).handlers:
-        h.addFilter(rule)
-
-
-def _remove_rule(rule: Rule) -> None:
-    for h in logging.getLogger(_ROOT).handlers:
-        h.removeFilter(rule)
-
-
-class _RuleAccess:
-    """Rule/handler accessors shared by both config tiers (all target the shared logger)."""
+class _FilterAccess:
+    """Filter/handler accessors shared by both config tiers (all target the shared logger)."""
 
     @property
     def _root(self) -> logging.Logger:
         return logging.getLogger(_ROOT)
 
     @property
-    def _rules(self) -> list[logging.Filter]:
-        return _current_rules()
+    def _filters(self) -> list[logging.Filter]:
+        return cast("list[logging.Filter]", self._root.handlers[0].filters)
 
-    def add_rule(self, rule: Rule) -> None:
-        _add_rule(rule)
+    def add_filter(self, filter: logging.Filter) -> None:
+        """Attach a :class:`logging.Filter` to the shared handler (survives rich toggles)."""
+        for h in self._root.handlers:
+            h.addFilter(filter)
 
-    def remove_rule(self, rule: Rule) -> None:
-        _remove_rule(rule)
+    def remove_filter(self, filter: logging.Filter) -> None:
+        """Detach a filter added with :meth:`add_filter`."""
+        for h in self._root.handlers:
+            h.removeFilter(filter)
 
 
 if _HAVE_PYDANTIC:
 
-    class _LogConfig(BaseModel, _RuleAccess):
+    class _LogConfig(BaseModel, _FilterAccess):
         """Central logging configuration; the singleton instance is :data:`config`.
 
         A pydantic model, so ``verbosity``/``rich`` are validated on assignment.
         Available when ``scverse-misc[logging]`` (i.e. ``pydantic``) is installed;
-        without it the reduced tier keeps the same verbosity/rich/rules behavior
+        without it the reduced tier keeps the same verbosity/rich/filters behavior
         via plain properties.
         """
 
@@ -220,11 +177,11 @@ if _HAVE_PYDANTIC:
 
 else:
 
-    class _LogConfig(_RuleAccess):  # type: ignore[no-redef]
+    class _LogConfig(_FilterAccess):  # type: ignore[no-redef]
         """Central logging configuration; the singleton instance is :data:`config`.
 
         Reduced tier, used when ``pydantic`` is absent. Logging works fully
-        (verbosity, rich toggle, rules); install ``scverse-misc[logging]`` to
+        (verbosity, rich toggle, filters); install ``scverse-misc[logging]`` to
         get pydantic-based validate-on-assignment for the config fields.
         """
 
@@ -258,8 +215,8 @@ config = _LogConfig()
 class TimedLogger:
     """Opt-in scanpy-style wrapper: ``time=``/``deep=`` keywords + a ``datetime`` return.
 
-    Sets ``time_passed``/``deep`` on the record (rendered by the :class:`Elapsed`
-    and :class:`Deep` rules) and returns the current time so callers can thread it.
+    Sets ``time_passed``/``deep`` on the record (rendered by the shared formatter)
+    and returns the current time so callers can thread it.
     Everything else delegates to the underlying real logger.
     """
 
