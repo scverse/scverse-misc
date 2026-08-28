@@ -2,7 +2,7 @@
 
 Skeleton: one ``scverse`` parent logger owning a single handler (rich if
 installed, else plain), with package loggers as children. Control via
-:data:`config`; attach any :class:`logging.Filter` with :meth:`config.add_filter`.
+:data:`config`; attach any :class:`logging.Filter` with :meth:`LogConfig.add_filter`.
 
 Records stay untouched: context travels as record attributes (``time_passed``,
 ``deep``), and only the text formatter renders them. A JSON handler attached
@@ -27,7 +27,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Literal, Self, cast, overload
 
-__all__ = ["TimedLogger", "config", "get_logger"]
+__all__ = ["LogConfig", "TimedLogger", "config", "get_logger"]
 
 _ROOT = "scverse"
 HINT = (logging.INFO + logging.DEBUG) // 2  # 15; used by the timed logger
@@ -146,7 +146,7 @@ class _FilterAccess:
 
 if _HAVE_PYDANTIC:
 
-    class _LogConfig(BaseModel, _FilterAccess):
+    class LogConfig(BaseModel, _FilterAccess):
         """Central logging configuration; the singleton instance is :data:`config`.
 
         A pydantic model, so ``verbosity``/``rich`` are validated on assignment.
@@ -177,7 +177,7 @@ if _HAVE_PYDANTIC:
 
 else:
 
-    class _LogConfig(_FilterAccess):  # type: ignore[no-redef]
+    class LogConfig(_FilterAccess):  # type: ignore[no-redef]
         """Central logging configuration; the singleton instance is :data:`config`.
 
         Reduced tier, used when ``pydantic`` is absent. Logging works fully
@@ -209,7 +209,8 @@ else:
             _reinstall(self.verbosity, self._rich)
 
 
-config = _LogConfig()
+config = LogConfig()
+"""Singleton logging configuration for all scverse loggers."""
 
 
 class TimedLogger:

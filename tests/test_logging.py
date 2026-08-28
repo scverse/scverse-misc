@@ -145,7 +145,7 @@ def test_verbosity_get_set_by_name_and_int() -> None:
 
 def test_verbosity_default_is_canonical() -> None:
     # pydantic tier must canonicalize its default too (regression: used to report lowercase "warning")
-    assert mod._LogConfig().verbosity == "WARNING"
+    assert mod.LogConfig().verbosity == "WARNING"
     config.verbosity = "warning"  # construction re-applied to the shared logger; leave a known state
 
 
@@ -202,7 +202,7 @@ def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert spec is not None and spec.loader is not None
     reduced = importlib.util.module_from_spec(spec)
     try:
-        spec.loader.exec_module(reduced)  # its `config = _LogConfig()` mutates the shared logger
+        spec.loader.exec_module(reduced)  # its `config = LogConfig()` mutates the shared logger
         assert reduced._HAVE_PYDANTIC is False
 
         cfg = reduced.config

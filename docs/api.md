@@ -57,6 +57,31 @@ Types used by the former:
 
 *Examples:* {ref}`example-settings-class`
 
+(logging)=
+## Logging (`scverse_misc.logging`)
+
+```{eval-rst}
+.. automodule:: scverse_misc.logging
+.. autosummary::
+    :toctree: generated
+
+    get_logger
+    TimedLogger
+```
+
+Configuration:
+
+```{eval-rst}
+.. toctree::
+   :hidden:
+
+   api/logging-config
+
+.. autosummary::
+
+   config
+```
+
 (datasets)=
 ## Datasets (`scverse_misc.datasets`)
 
