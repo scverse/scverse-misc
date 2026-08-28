@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
-## [0.1.4] (Unreleased)
+## [0.1.4]
 
 ### Added
 
