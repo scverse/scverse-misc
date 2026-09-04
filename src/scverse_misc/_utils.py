@@ -55,7 +55,7 @@ def get_packagename(cls: type | str) -> str:
     return package_name
 
 
-def get_caller_package(stacklevel: int = 0) -> str:
+def get_caller_package(stacklevel: int = 0) -> str | None:
     frame = inspect.currentframe()
     if TYPE_CHECKING:
         assert frame is not None
@@ -65,7 +65,7 @@ def get_caller_package(stacklevel: int = 0) -> str:
         else:
             break
     module = inspect.getmodule(frame)
-    return get_packagename(module.__name__) if module is not None else ""
+    return get_packagename(module.__name__) if module is not None else None
 
 
 def get_package_file_prefixes(packagename: str) -> tuple[str, ...]:
@@ -83,7 +83,8 @@ def get_package_file_prefixes(packagename: str) -> tuple[str, ...]:
 
 
 def get_caller_package_file_prefixes() -> tuple[str, ...]:
-    return get_package_file_prefixes(get_caller_package(1))
+    caller_pkg = get_caller_package(1)
+    return get_package_file_prefixes(caller_pkg) if caller_pkg is not None else ()
 
 
 def type_str(cls: type, field: FieldInfo) -> str:
