@@ -82,8 +82,6 @@ def warn_outside(
 
     Walks out of `prefixes`, stdlib frames and frames marked `__tracebackhide__`.
     `stacklevel=1` means the caller, as in :func:`warnings.warn`.
-
-    Not `warn(skip_file_prefixes=…)`: before Python 3.14 that only ever skips one frame.
     """
     # `sys._getframe(i)` counts from 0 = here, `warn(stacklevel=s)` from 1 = here.
     frame: FrameType | None = sys._getframe(stacklevel)
