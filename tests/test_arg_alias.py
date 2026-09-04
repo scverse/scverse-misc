@@ -1,11 +1,14 @@
-from typing import Literal
+from inspect import getsource
+from textwrap import dedent
+from typing import TYPE_CHECKING, Literal
 
 import pytest
 
 from scverse_misc import arg_alias
 
 
-def test_arg_alias() -> None:
+@pytest.mark.parametrize("stringify", [True, False], ids=["stringify", "no_stringify"])
+def test_arg_alias(stringify: bool) -> None:
     @arg_alias("axis_union_string")
     @arg_alias("axis_union")
     @arg_alias("axis")
@@ -21,6 +24,13 @@ def test_arg_alias() -> None:
         assert axis_union_string in (0, 1)
 
         return axis, axis_union, axis_union_string
+
+    if stringify:
+        ns: dict[str, object] = {}
+        exec(f"from __future__ import annotations\n{dedent(getsource(func))}", globals(), ns)
+        if not TYPE_CHECKING:  # shhh
+            func = ns["func"]
+    assert isinstance(func.__annotations__["return"], str) == stringify
 
     assert func(42, 0) == (0, 1, 1)
     assert func(42, "obs") == (0, 1, 1)
