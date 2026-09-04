@@ -5,6 +5,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
+from .._utils import get_caller_package_file_prefixes, get_package_file_prefixes
 from ..constants import ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
@@ -48,6 +49,9 @@ class CallableWithDeprecatedArg[**P, R](Protocol):
     def __call__(*args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
+_helper_packages = ("legacy_api_wrap",)
+
+
 class deprecated_arg:
     """Decorator to indicate that a function argument is deprecated.
 
@@ -79,6 +83,9 @@ class deprecated_arg:
         self.stacklevel = stacklevel
 
     def __call__[**P, R](self, func: Callable[P, R]) -> CallableWithDeprecatedArg[P, R]:
+        skipfiles = list(get_caller_package_file_prefixes())
+        for helper in _helper_packages:
+            skipfiles.extend(get_package_file_prefixes(helper))  # TODO: use comprehension unpacking in Python 3.15
         warnmsg = f"The argument {self.arg} is deprecated and will be removed in the future."
         if len(self.msg):
             warnmsg += f" {self.msg}"
@@ -92,11 +99,18 @@ class deprecated_arg:
                 param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
                 and self.arg in kwargs
             ):
-                warn(warnmsg, category=self.category, stacklevel=self.stacklevel + 1)
+                warn(
+                    warnmsg, category=self.category, stacklevel=self.stacklevel + 1, skip_file_prefixes=tuple(skipfiles)
+                )
             else:
                 bound = sig.bind(*args, **kwargs)
                 if self.arg in bound.arguments and bound.arguments[self.arg] != param.default:
-                    warn(warnmsg, category=self.category, stacklevel=self.stacklevel + 1)
+                    warn(
+                        warnmsg,
+                        category=self.category,
+                        stacklevel=self.stacklevel + 1,
+                        skip_file_prefixes=tuple(skipfiles),
+                    )
 
             return func(*args, **kwargs)
 

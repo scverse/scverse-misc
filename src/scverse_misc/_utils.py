@@ -5,6 +5,7 @@ import inspect
 import sys
 from collections.abc import Callable, Mapping
 from functools import WRAPPER_ASSIGNMENTS
+from pathlib import Path
 from types import FunctionType, GenericAlias
 from typing import TYPE_CHECKING, ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
 
@@ -52,6 +53,37 @@ def get_packagename(cls: type | str) -> str:
     if dotidx > -1:
         package_name = package_name[:dotidx]
     return package_name
+
+
+def get_caller_package(stacklevel: int = 0) -> str:
+    frame = inspect.currentframe()
+    if TYPE_CHECKING:
+        assert frame is not None
+    for _ in range(stacklevel + 2):
+        if (back := frame.f_back) is not None:
+            frame = back
+        else:
+            break
+    module = inspect.getmodule(frame)
+    return get_packagename(module.__name__) if module is not None else ""
+
+
+def get_package_file_prefixes(packagename: str) -> tuple[str, ...]:
+    try:
+        module = sys.modules[packagename]
+    except KeyError:
+        return ()
+    if file := module.__file__:
+        return (str(Path(file).parent),)
+    else:  # namespace package
+        if (spec := module.__spec__) is not None and (locs := spec.submodule_search_locations) is not None:
+            return tuple(locs)
+        else:
+            return ()
+
+
+def get_caller_package_file_prefixes() -> tuple[str, ...]:
+    return get_package_file_prefixes(get_caller_package(1))
 
 
 def type_str(cls: type, field: FieldInfo) -> str:
