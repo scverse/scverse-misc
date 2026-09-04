@@ -62,7 +62,7 @@ def caller_skip_prefixes(*, stacklevel: int = 1) -> tuple[str, ...]:
     `stacklevel=1` means the frame calling this function, as in :func:`warnings.warn`.
     """
     caller = sys._getframe(stacklevel).f_globals.get("__name__", "")
-    return tuple(p for mod in dict.fromkeys((caller, __package__)) if (p := package_prefix(mod)) is not None)
+    return tuple(p for mod in {caller, __package__} if (p := package_prefix(mod)) is not None)
 
 
 def _is_wrapper_frame(frame: FrameType, prefixes: tuple[str, ...]) -> bool:
