@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from functools import wraps
 from inspect import signature
-from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
+from typing import Literal, Union, get_args, get_origin, get_type_hints
 
 
 def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -49,7 +49,7 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
         else:
             raise TypeError(f"Type hint for argument '{argname}' must be 'Union' or 'Literal', found '{hint}'.")
 
-        replacements: dict[Any, Any] = {}
+        replacements: dict[object, object] = {}
         values = set()
 
         for aliasset in sets:
