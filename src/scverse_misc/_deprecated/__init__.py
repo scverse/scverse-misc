@@ -5,6 +5,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
+from .._utils import caller_skip_prefixes, warn_outside
 from ..constants import ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
@@ -59,7 +60,9 @@ class deprecated_arg:
         arg: The deprecated argument.
         msg: The deprecation message.
         category: The category of the warning that will be emitted at runtime.
-        stacklevel: The stack level of the warning.
+        stacklevel: Override the stack level of the warning. By default it’s the first frame
+            outside your package and any wrappers around it, which is right however many
+            decorators are stacked on the function.
 
     Examples:
         >>> @deprecated_arg("bar", Deprecation("0.2", "The functionality has moved to the baz() function."))
@@ -71,12 +74,18 @@ class deprecated_arg:
     """
 
     def __init__(
-        self, arg: LiteralString, msg: Deprecation, *, category: type[Warning] = FutureWarning, stacklevel: int = 1
+        self,
+        arg: LiteralString,
+        msg: Deprecation,
+        *,
+        category: type[Warning] = FutureWarning,
+        stacklevel: int | None = None,
     ) -> None:
         self.arg = arg
         self.msg = msg
         self.category = category
         self.stacklevel = stacklevel
+        self.skip_file_prefixes = caller_skip_prefixes(stacklevel=2)
 
     def __call__[**P, R](self, func: Callable[P, R]) -> CallableWithDeprecatedArg[P, R]:
         warnmsg = f"The argument {self.arg} is deprecated and will be removed in the future."
@@ -86,17 +95,24 @@ class deprecated_arg:
         sig = inspect.signature(func)
         param = sig.parameters[self.arg]
 
+        def emit() -> None:
+            if self.stacklevel is not None:
+                warn(warnmsg, category=self.category, stacklevel=self.stacklevel + 2)
+            else:  # the walk eats this frame and `wrapped` by itself
+                warn_outside(warnmsg, self.category, self.skip_file_prefixes)
+
         @wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+            __tracebackhide__ = True
             if (
                 param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
                 and self.arg in kwargs
             ):
-                warn(warnmsg, category=self.category, stacklevel=self.stacklevel + 1)
+                emit()
             else:
                 bound = sig.bind(*args, **kwargs)
                 if self.arg in bound.arguments and bound.arguments[self.arg] != param.default:
-                    warn(warnmsg, category=self.category, stacklevel=self.stacklevel + 1)
+                    emit()
 
             return func(*args, **kwargs)
 

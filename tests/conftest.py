@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
+
+# `depkg` stands in for a package that deprecates things. It lives outside `tests/` because
+# warnings are blamed on the first frame outside the deprecating package – were it inside,
+# the test files calling it would be skipped too.
+sys.path.insert(0, str(Path(__file__).parent / "_pkgs"))
 
 if TYPE_CHECKING:
     from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring

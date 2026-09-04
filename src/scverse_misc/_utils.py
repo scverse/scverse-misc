@@ -3,12 +3,15 @@ from __future__ import annotations
 import functools
 import inspect
 import sys
+import warnings
 from collections.abc import Callable, Mapping
 from functools import WRAPPER_ASSIGNMENTS
 from types import FunctionType, GenericAlias
 from typing import TYPE_CHECKING, ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
 
 if TYPE_CHECKING:
+    from types import FrameType
+
     from pydantic.fields import FieldInfo
 
 
@@ -44,6 +47,50 @@ def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
     wrapper = functools.update_wrapper(new, func, assigned=copy)
     del wrapper.__wrapped__  # otherwise sphinx will try to document that.
     return cast("F", wrapper)
+
+
+def package_prefix(mod_name: str) -> str | None:
+    """Root directory of `mod_name`’s package, its own file if it isn’t in one, `None` if unimported."""
+    if (root := sys.modules.get(mod_name.partition(".")[0])) is not None and (path := getattr(root, "__path__", None)):
+        return cast("str", next(iter(path)))
+    return cast("str | None", getattr(sys.modules.get(mod_name), "__file__", None))
+
+
+def caller_skip_prefixes(*, stacklevel: int = 1) -> tuple[str, ...]:
+    """Prefixes covering the package of the frame at `stacklevel`, plus our own.
+
+    `stacklevel=1` means the frame calling this function, as in :func:`warnings.warn`.
+    """
+    caller = sys._getframe(stacklevel).f_globals.get("__name__", "")
+    return tuple(p for mod in dict.fromkeys((caller, __package__)) if (p := package_prefix(mod)) is not None)
+
+
+def _is_wrapper_frame(frame: FrameType, prefixes: tuple[str, ...]) -> bool:
+    if frame.f_code.co_filename.startswith(prefixes):
+        return True
+    # `singledispatch`, `contextmanager`, … – by module name, so frozen `abc` is covered
+    # and `site-packages` (below the stdlib dir) isn’t.
+    if frame.f_globals.get("__name__", "").partition(".")[0] in sys.stdlib_module_names:
+        return True
+    return bool(frame.f_locals.get("__tracebackhide__", frame.f_globals.get("__tracebackhide__")))
+
+
+def warn_outside(
+    message: str, category: type[Warning] = UserWarning, prefixes: tuple[str, ...] = (), *, stacklevel: int = 1
+) -> None:
+    """:func:`warnings.warn`, blaming the first frame that isn’t a wrapper.
+
+    Walks out of `prefixes`, stdlib frames and frames marked `__tracebackhide__`.
+    `stacklevel=1` means the caller, as in :func:`warnings.warn`.
+
+    Not `warn(skip_file_prefixes=…)`: before Python 3.14 that only ever skips one frame.
+    """
+    # `sys._getframe(i)` counts from 0 = here, `warn(stacklevel=s)` from 1 = here.
+    frame: FrameType | None = sys._getframe(stacklevel)
+    level = stacklevel + 1
+    while frame is not None and _is_wrapper_frame(frame, prefixes):
+        frame, level = frame.f_back, level + 1
+    warnings.warn(message, category, stacklevel=level)
 
 
 def get_packagename(cls: type | str) -> str:

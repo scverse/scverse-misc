@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 import sys
-import warnings
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from types import FunctionType
@@ -11,7 +10,12 @@ from typing import Final, Literal, LiteralString, Self
 import dotenv
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from ._utils import copy_func, get_packagename, type_str
+from ._utils import copy_func, get_packagename, package_prefix, type_str, warn_outside
+
+#: `__init_subclass__` runs under `ModelMetaclass.__new__` → `ABCMeta.__new__`, so no fixed
+#: `stacklevel` reaches the `class` statement. Unlike for the deprecation decorators, the caller’s
+#: own package must *not* be skipped: it’s the package author who writes these arguments.
+_WRAPPERS: Final = tuple(p for m in (__package__, "pydantic") if (p := package_prefix(m)) is not None)
 
 
 class Settings(BaseSettings):
@@ -68,16 +72,16 @@ class Settings(BaseSettings):
         docstring_style: Literal["google", "numpy", "scverse"] | None = None,
     ) -> None:
         if exported_object_name is not None:
-            warnings.warn(
+            warn_outside(
                 "The exported_object_name class argument is deprecated and will be removed in the future.",
-                category=DeprecationWarning,
-                stacklevel=2,
+                DeprecationWarning,
+                _WRAPPERS,
             )
         if docstring_style is not None:
-            warnings.warn(
+            warn_outside(
                 "The docstring_style class argument is deprecated and will be removed in the future.",
-                category=DeprecationWarning,
-                stacklevel=2,
+                DeprecationWarning,
+                _WRAPPERS,
             )
 
         env_file = dotenv.find_dotenv(usecwd=True)
@@ -85,22 +89,24 @@ class Settings(BaseSettings):
 
         if (config := subcls.__dict__.get("model_config")) is not None:
             if not config.get("validate_assignment", True):
-                warnings.warn("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, stacklevel=2)
+                warn_outside("`validate_assignment=False` is not supported, overriding.", RuntimeWarning, _WRAPPERS)
             if not config.get("use_attribute_docstrings", True):
-                warnings.warn(
-                    "`use_attribute_docstrings=False` is not supported, overriding.", RuntimeWarning, stacklevel=2
+                warn_outside(
+                    "`use_attribute_docstrings=False` is not supported, overriding.",
+                    RuntimeWarning,
+                    _WRAPPERS,
                 )
             if config.get("env_file") not in (None, "", env_file):
-                warnings.warn(
+                warn_outside(
                     f"Setting a custom env_file location is not supported, overriding {config['env_file']=}.",
                     RuntimeWarning,
-                    stacklevel=2,
+                    _WRAPPERS,
                 )
             if config.get("dotenv_filtering") not in (None, dotenv_filtering):
-                warnings.warn(
+                warn_outside(
                     f"Setting a custom dotenv_filtering scheme is not supported, overriding {config['dotenv_filtering']=}.",
                     RuntimeWarning,
-                    stacklevel=2,
+                    _WRAPPERS,
                 )
         else:
             config = SettingsConfigDict()
