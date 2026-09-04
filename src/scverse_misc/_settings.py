@@ -10,12 +10,12 @@ from typing import Final, Literal, LiteralString, Self
 import dotenv
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from ._utils import copy_func, get_packagename, package_prefix, type_str, warn_outside
+from ._utils import copy_func, get_packagename, package_prefixes, type_str, warn_outside
 
 #: `__init_subclass__` runs under `ModelMetaclass.__new__` → `ABCMeta.__new__`, so no fixed
 #: `stacklevel` reaches the `class` statement. Unlike for the deprecation decorators, the caller’s
 #: own package must *not* be skipped: it’s the package author who writes these arguments.
-_WRAPPERS: Final = tuple(p for m in (__package__, "pydantic") if (p := package_prefix(m)) is not None)
+_WRAPPERS: Final = tuple(p for m in (__package__, "pydantic") if (ps := package_prefixes(m)) for p in ps)
 
 
 class Settings(BaseSettings):

@@ -49,11 +49,19 @@ def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
     return cast("F", wrapper)
 
 
-def package_prefix(mod_name: str) -> str | None:
+def package_prefixes(mod_name: str | None) -> list[str]:
     """Root directory of `mod_name`’s package, its own file if it isn’t in one, `None` if unimported."""
-    if (root := sys.modules.get(mod_name.partition(".")[0])) is not None and (path := getattr(root, "__path__", None)):
-        return cast("str", next(iter(path)))
-    return cast("str | None", getattr(sys.modules.get(mod_name), "__file__", None))
+    if mod_name is None:
+        return []
+    if (
+        (root := sys.modules.get(mod_name.partition(".")[0])) is not None
+        and root.__spec__ is not None
+        and (smsls := root.__spec__.submodule_search_locations) is not None
+    ):
+        return smsls
+    if (file := getattr(sys.modules.get(mod_name), "__file__", None)) is not None:
+        return [file]
+    return []
 
 
 def caller_skip_prefixes(*, stacklevel: int = 1) -> tuple[str, ...]:
@@ -62,7 +70,7 @@ def caller_skip_prefixes(*, stacklevel: int = 1) -> tuple[str, ...]:
     `stacklevel=1` means the frame calling this function, as in :func:`warnings.warn`.
     """
     caller = sys._getframe(stacklevel).f_globals.get("__name__", "")
-    return tuple(p for mod in {caller, __package__} if (p := package_prefix(mod)) is not None)
+    return tuple(p for mod in {caller, __package__} if (ps := package_prefixes(mod)) for p in ps)
 
 
 def _is_wrapper_frame(frame: FrameType, prefixes: tuple[str, ...]) -> bool:
