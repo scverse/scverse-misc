@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
+## [0.1.5] (Unreleased)
+
+### Added
+
+- An `arg_alias` decorator that simplifies handling of function arguments taking on one of a fixed set of values, where
+  each value may have multiple aliases (e.g. the `axis` argument of many scverse functions).
+
 ## [0.1.4]
 
 ### Added
@@ -121,6 +128,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.1.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.5
 [0.1.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.4
 [0.1.3]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.3
 [0.1.2]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.2

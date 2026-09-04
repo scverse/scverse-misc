@@ -57,6 +57,15 @@ Types used by the former:
 
 *Examples:* {ref}`example-settings-class`
 
+(arg_alias)=
+## Argument value aliasing
+```{eval-rst}
+.. autosummary::
+   :toctree: generated
+
+    arg_alias
+```
+
 (datasets)=
 ## Datasets (`scverse_misc.datasets`)
 
