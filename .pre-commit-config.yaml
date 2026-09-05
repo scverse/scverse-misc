@@ -46,6 +46,7 @@ repos:
       - pydantic-settings
       - pydocstring-rs>=0.4.1
       - pytest
+      - rich
       - sphinx
       - sphinxcontrib-katex
       - types-PyYAML
