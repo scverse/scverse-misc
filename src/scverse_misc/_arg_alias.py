@@ -1,20 +1,30 @@
-from collections.abc import Callable, Sequence
+import sys
+import typing
+from collections.abc import Callable
+from contextlib import suppress
 from functools import wraps
 from inspect import signature
 from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
+if sys.version_info >= (3, 14):
+    from annotationlib import Format, get_annotations
+else:
+    from typing_extensions import Format, get_annotations
 
-def _compute_aliases(
-    func: Callable[..., Any], argname: str, args: Sequence[Any] | None = None
-) -> tuple[dict[object, object], set[object]]:
+
+def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[object, object], set[object]]:
     hint = None
     try:
         hint = get_type_hints(func)[argname]
-    except NameError as e:
-        if e.name is not None and args and args[0].__class__.__name__ == e.name:
-            hint = get_type_hints(func, localns={e.name: args[0].__class__})[argname]
-        else:
-            raise
+    except NameError:
+        str_hint = get_annotations(func, format=Format.STRING)[argname]
+        globalns = {}
+        try:
+            globalns = func.__globals__
+        except AttributeError:  # possibly a class
+            with suppress(AttributeError, KeyError):
+                globalns = sys.modules[func.__module__].__dict__
+        hint = eval(str_hint, globalns, {"typing": typing, "Literal": Literal, "Union": Union})
 
     if get_origin(hint) is Literal:
         sets = (hint,)
@@ -86,7 +96,7 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
             nonlocal replacements, values
             if replacements is None or values is None:
-                replacements, values = _compute_aliases(func, argname, args)
+                replacements, values = _compute_aliases(func, argname)
 
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
