@@ -41,51 +41,76 @@ def test_arg_alias(stringify: bool) -> None:
 
 
 class Klass:
+    @arg_alias("axis_str")
     @arg_alias("axis")
-    def __init__(self, other: "Klass | None" = None, axis: Literal[0, "obs"] | Literal[1, "var"] = 0) -> None:
+    def __init__(
+        self,
+        other: "Klass | None" = None,
+        axis: Literal[0, "obs"] | Literal[1, "var"] = 0,
+        axis_str: "Literal[0, 'obs'] | Literal[1, 'var']" = 0,
+    ) -> None:
         self.axis = axis
+        self.axis_str = axis_str
 
 
 def test_arg_alias_inner_method() -> None:
 
-    obj = Klass(axis="var")
+    obj = Klass(axis="var", axis_str="var")
     assert obj.axis == 1
+    assert obj.axis_str == 1
 
-    obj = Klass(axis="obs")
+    obj = Klass(axis="obs", axis_str="obs")
     assert obj.axis == 0
+    assert obj.axis_str == 0
 
 
 def test_arg_alias_inner_class_method() -> None:
     class InnerKlass:
+        @arg_alias("axis_str")
         @arg_alias("axis")
-        def __init__(self, other: "InnerKlass | None" = None, axis: Literal[0, "obs"] | Literal[1, "var"] = 0) -> None:
+        def __init__(
+            self,
+            other: "InnerKlass | None" = None,
+            axis: Literal[0, "obs"] | Literal[1, "var"] = 0,
+            axis_str: "Literal[0, 'obs'] | Literal[1, 'var']" = 0,
+        ) -> None:
             self.axis = axis
+            self.axis_str = axis_str
 
-    obj = InnerKlass(axis="var")
+    obj = InnerKlass(axis="var", axis_str="var")
     assert obj.axis == 1
+    assert obj.axis_str == 1
 
-    obj = InnerKlass(axis="obs")
+    obj = InnerKlass(axis="obs", axis_str="obs")
     assert obj.axis == 0
+    assert obj.axis_str == 0
 
 
 def test_arg_alias_inner_class_return_method() -> None:
     def make_class() -> type:
         class InnerKlass:
+            @arg_alias("axis_str")
             @arg_alias("axis")
             def __init__(
-                self, other: "InnerKlass | None" = None, axis: Literal[0, "obs"] | Literal[1, "var"] = 0
+                self,
+                other: "InnerKlass | None" = None,
+                axis: Literal[0, "obs"] | Literal[1, "var"] = 0,
+                axis_str: "Literal[0, 'obs'] | Literal[1, 'var']" = 0,
             ) -> None:
                 self.axis = axis
+                self.axis_str = axis_str
 
         return InnerKlass
 
     klass = make_class()
 
-    obj = klass(axis="var")
+    obj = klass(axis="var", axis_str="var")
     assert obj.axis == 1
+    assert obj.axis_str == 1
 
-    obj = klass(axis="obs")
+    obj = klass(axis="obs", axis_str="obs")
     assert obj.axis == 0
+    assert obj.axis_str == 0
 
 
 def test_arg_alias_raises() -> None:

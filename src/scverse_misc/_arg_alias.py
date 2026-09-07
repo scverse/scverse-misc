@@ -7,9 +7,13 @@ from inspect import signature
 from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
 if sys.version_info >= (3, 14):
-    from annotationlib import Format, get_annotations
+    from typing import evaluate_forward_ref
+
+    from annotationlib import Format, ForwardRef, get_annotations
 else:
-    from typing_extensions import Format, get_annotations
+    from typing import ForwardRef
+
+    from typing_extensions import Format, evaluate_forward_ref, get_annotations
 
 
 def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[object, object], set[object]]:
@@ -17,14 +21,17 @@ def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[objec
     try:
         hint = get_type_hints(func)[argname]
     except NameError:
-        str_hint = get_annotations(func, format=Format.STRING)[argname]
-        globalns = {}
-        try:
-            globalns = func.__globals__
-        except AttributeError:  # possibly a class
-            with suppress(AttributeError, KeyError):
-                globalns = sys.modules[func.__module__].__dict__
-        hint = eval(str_hint, globalns, {"typing": typing, "Literal": Literal, "Union": Union})
+        hint = get_annotations(func, format=Format.FORWARDREF)[argname]
+        if isinstance(hint, ForwardRef):
+            hint = evaluate_forward_ref(hint)
+        elif isinstance(hint, str):
+            globalns = {}
+            try:
+                globalns = func.__globals__
+            except AttributeError:  # possibly a class
+                with suppress(AttributeError, KeyError):
+                    globalns = sys.modules[func.__module__].__dict__
+            hint = eval(hint, globalns, {"typing": typing, "Literal": Literal, "Union": Union})
 
     if get_origin(hint) is Literal:
         sets = (hint,)
@@ -42,8 +49,12 @@ def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[objec
                 f"All type hints specifying aliases for argument '{argname}' must be 'Literal', found '{aliasset}'."
             )
         value, *aliases = get_args(aliasset)
+        if isinstance(value, ForwardRef):
+            value = evaluate_forward_ref(value)
         values.add(value)
-        replacements.update((alias, value) for alias in aliases)
+        replacements.update(
+            (evaluate_forward_ref(alias) if isinstance(alias, ForwardRef) else alias, value) for alias in aliases
+        )
 
     return replacements, values
 
