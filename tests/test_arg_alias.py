@@ -40,6 +40,54 @@ def test_arg_alias(stringify: bool) -> None:
         func(42, "obs", axis_union="vars")  # type: ignore[arg-type]
 
 
+class Klass:
+    @arg_alias("axis")
+    def __init__(self, other: "Klass | None" = None, axis: Literal[0, "obs"] | Literal[1, "var"] = 0) -> None:
+        self.axis = axis
+
+
+def test_arg_alias_inner_method() -> None:
+
+    obj = Klass(axis="var")
+    assert obj.axis == 1
+
+    obj = Klass(axis="obs")
+    assert obj.axis == 0
+
+
+def test_arg_alias_inner_class_method() -> None:
+    class InnerKlass:
+        @arg_alias("axis")
+        def __init__(self, other: "InnerKlass | None" = None, axis: Literal[0, "obs"] | Literal[1, "var"] = 0) -> None:
+            self.axis = axis
+
+    obj = InnerKlass(axis="var")
+    assert obj.axis == 1
+
+    obj = InnerKlass(axis="obs")
+    assert obj.axis == 0
+
+
+def test_arg_alias_inner_class_return_method() -> None:
+    def make_class() -> type:
+        class InnerKlass:
+            @arg_alias("axis")
+            def __init__(
+                self, other: "InnerKlass | None" = None, axis: Literal[0, "obs"] | Literal[1, "var"] = 0
+            ) -> None:
+                self.axis = axis
+
+        return InnerKlass
+
+    klass = make_class()
+
+    obj = klass(axis="var")
+    assert obj.axis == 1
+
+    obj = klass(axis="obs")
+    assert obj.axis == 0
+
+
 def test_arg_alias_raises() -> None:
     with pytest.raises(TypeError, match="must be 'Union' or 'Literal'"):
 

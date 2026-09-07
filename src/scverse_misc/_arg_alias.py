@@ -1,7 +1,41 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import wraps
 from inspect import signature
-from typing import Literal, Union, get_args, get_origin, get_type_hints
+from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
+
+
+def _compute_aliases(
+    func: Callable[..., Any], argname: str, args: Sequence[Any] | None = None
+) -> tuple[dict[object, object], set[object]]:
+    hint = None
+    try:
+        hint = get_type_hints(func)[argname]
+    except NameError as e:
+        if e.name is not None and args and args[0].__class__.__name__ == e.name:
+            hint = get_type_hints(func, localns={e.name: args[0].__class__})[argname]
+        else:
+            raise
+
+    if get_origin(hint) is Literal:
+        sets = (hint,)
+    elif get_origin(hint) is Union:
+        sets = get_args(hint)
+    else:
+        raise TypeError(f"Type hint for argument '{argname}' must be 'Union' or 'Literal', found '{hint}'.")
+
+    replacements: dict[object, object] = {}
+    values = set()
+
+    for aliasset in sets:
+        if get_origin(aliasset) is not Literal:
+            raise TypeError(
+                f"All type hints specifying aliases for argument '{argname}' must be 'Literal', found '{aliasset}'."
+            )
+        value, *aliases = get_args(aliasset)
+        values.add(value)
+        replacements.update((alias, value) for alias in aliases)
+
+    return replacements, values
 
 
 def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -41,30 +75,19 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
     """
 
     def wrapper(func: Callable[P, R]) -> Callable[P, R]:
-        hint = get_type_hints(func)[argname]
-        if get_origin(hint) is Literal:
-            sets = (hint,)
-        elif get_origin(hint) is Union:
-            sets = get_args(hint)
-        else:
-            raise TypeError(f"Type hint for argument '{argname}' must be 'Union' or 'Literal', found '{hint}'.")
-
-        replacements: dict[object, object] = {}
-        values = set()
-
-        for aliasset in sets:
-            if get_origin(aliasset) is not Literal:
-                raise TypeError(
-                    f"All type hints specifying aliases for argument '{argname}' must be 'Literal', found '{aliasset}'."
-                )
-            value, *aliases = get_args(aliasset)
-            values.add(value)
-            replacements.update((alias, value) for alias in aliases)
+        try:
+            replacements, values = _compute_aliases(func, argname)
+        except NameError:
+            replacements, values = None, None  # method has a type hint with its class
 
         sig = signature(func)
 
         @wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+            nonlocal replacements, values
+            if replacements is None or values is None:
+                replacements, values = _compute_aliases(func, argname, args)
+
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
 
