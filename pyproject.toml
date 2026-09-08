@@ -103,6 +103,7 @@ lint.select = [
   "C4",     # flake8-comprehensions
   "D",      # pydocstyle
   "E",      # Error detected by Pycodestyle
+  "EM",     # Error messages
   "F",      # Errors detected by Pyflakes
   "I",      # isort
   "RUF100", # Report unused noqa directives

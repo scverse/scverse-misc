@@ -40,7 +40,8 @@ class FileEntry:
             return self.url
         if base_url and self.s3_key:
             return f"{base_url.rstrip('/')}/{self.s3_key}"
-        raise ValueError(f"FileEntry {self.name!r} has neither `url` nor `s3_key` (with a registry `base_url`).")
+        msg = f"FileEntry {self.name!r} has neither `url` nor `s3_key` (with a registry `base_url`)."
+        raise ValueError(msg)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +69,11 @@ class DatasetEntry:
             matches = [f for f in self.files if f.name.endswith(suffix)]
             crit = f"suffix={suffix!r}"
         else:
-            raise ValueError("Pass exactly one of `name` or `suffix`.")
+            msg = "Pass exactly one of `name` or `suffix`."
+            raise ValueError(msg)
         if len(matches) != 1:
-            raise ValueError(f"Expected exactly one file with {crit} in {self.name!r}, found {len(matches)}.")
+            msg = f"Expected exactly one file with {crit} in {self.name!r}, found {len(matches)}."
+            raise ValueError(msg)
         return matches[0]
 
 
