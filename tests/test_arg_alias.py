@@ -130,9 +130,15 @@ lazy_annots = pytest.mark.skipif(sys.version_info < (3, 14), reason="unresolvabl
 @pytest.mark.parametrize(
     "src",
     [
-        pytest.param(f'def obj(color: "{HINT}"): return color', id="str"),
+        # the `NeverDefined` sibling makes `get_type_hints` fail forever, not just before `Color` exists
+        pytest.param(f'def obj(color: "{HINT}", other: "NeverDefined" = None): return color', id="str"),
         pytest.param(f"def obj(color: {HINT}): return color", id="forwardref_in_literal", marks=lazy_annots),
         pytest.param("def obj(color: ColorHint): return color", id="forwardref_whole_hint", marks=lazy_annots),
+        pytest.param(
+            f"def obj(color: {HINT}, other: NeverDefined = None): return color",
+            id="unresolvable_sibling",
+            marks=lazy_annots,
+        ),
         pytest.param(
             f'class Holder:\n color: "{HINT_TC}"\n def __init__(self, color): self.color = color\n'
             "obj = lambda color: Holder(color).color",

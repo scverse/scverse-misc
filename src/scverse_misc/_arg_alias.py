@@ -1,19 +1,22 @@
 import sys
 import typing
 from collections.abc import Callable
-from functools import wraps
-from inspect import signature
+from functools import partial, wraps
 from typing import Any, ForwardRef, Literal, Union, get_args, get_origin, get_type_hints
 
-if sys.version_info >= (3, 14):
+if sys.version_info >= (3, 14):  # annotations can be ForwardRef
+    from inspect import signature as _signature
     from typing import evaluate_forward_ref
 
     from annotationlib import Format, get_annotations
-else:
+
+    signature = partial(_signature, annotation_format=Format.FORWARDREF)
+else:  # annotations are resolved or stringified
+    from inspect import signature
+
     from typing_extensions import Format, evaluate_forward_ref, get_annotations
 
 
-# enough to evaluate a legal hint even if the module imports these only under `TYPE_CHECKING`
 _TYPING_NS = {"typing": typing, "Literal": Literal, "Union": Union}
 
 
@@ -27,7 +30,7 @@ def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[objec
         if isinstance(hint, ForwardRef):
             try:
                 hint = evaluate_forward_ref(hint, owner=func)
-            except NameError:  # fall back to custom namespace
+            except NameError:  # fall back to custom namespace for `if TYPE_CHECKING`
                 hint = evaluate_forward_ref(hint, owner=func, locals=_TYPING_NS)
 
     if get_origin(hint) is Literal:
@@ -93,18 +96,17 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
     """
 
     def wrapper(func: Callable[P, R]) -> Callable[P, R]:
-        try:
+        try:  # try evaluating type hints eagerly for early usage errors
             rv = _compute_aliases(func, argname)
-            sig = signature(func)  # also evaluates annotations, so it can fail too
         except NameError:
-            rv, sig = None, None  # method has a type hint with its class
+            rv = None
+        sig = signature(func)
 
         @wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
-            nonlocal rv, sig
-            if rv is None or sig is None:
+            nonlocal rv
+            if rv is None:
                 rv = _compute_aliases(func, argname)
-                sig = signature(func)
             replacements, values = rv
 
             bound = sig.bind(*args, **kwargs)
