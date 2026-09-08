@@ -1,5 +1,8 @@
+import sys
+from enum import Enum
 from inspect import getsource
 from textwrap import dedent
+from types import ModuleType
 from typing import TYPE_CHECKING, Literal
 
 import pytest
@@ -111,6 +114,48 @@ def test_arg_alias_inner_class_return_method() -> None:
     obj = klass(axis="obs", axis_str="obs")
     assert obj.axis == 0
     assert obj.axis_str == 0
+
+
+# unrealistic example, real code would use a StrEnum and `color = Color(color)` for this use case
+class Color(Enum):
+    RED = 1
+    GREEN = 2
+
+
+HINT = "Literal[Color.RED, 'red'] | Literal[Color.GREEN, 'green']"
+HINT_TC = HINT.replace("Literal", "typing.Literal")  # as if `typing` was imported under `TYPE_CHECKING`
+lazy_annots = pytest.mark.skipif(sys.version_info < (3, 14), reason="unresolvable annotations need PEP 649")
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        pytest.param(f'def obj(color: "{HINT}"): return color', id="str"),
+        pytest.param(f"def obj(color: {HINT}): return color", id="forwardref_in_literal", marks=lazy_annots),
+        pytest.param("def obj(color: ColorHint): return color", id="forwardref_whole_hint", marks=lazy_annots),
+        pytest.param(
+            f'class Holder:\n color: "{HINT_TC}"\n def __init__(self, color): self.color = color\n'
+            "obj = lambda color: Holder(color).color",
+            id="class",
+        ),
+    ],
+)
+def test_arg_alias_deferred(src: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The annotation is unresolvable at decoration time, only at call time."""
+    mod = ModuleType("deferred_mod")
+    ns = mod.__dict__
+    ns.update(arg_alias=arg_alias, Literal=Literal)
+    monkeypatch.setitem(sys.modules, mod.__name__, mod)  # a class resolves its hints via sys.modules
+    exec(f"@arg_alias('color')\n{src}", ns)
+    # only now the hint becomes resolvable
+    ns.update(Color=Color, ColorHint=Literal[Color.RED, "red"] | Literal[Color.GREEN, "green"])
+
+    assert ns["obj"]("red") is Color.RED
+    assert ns["obj"](Color.RED) is Color.RED
+    assert ns["obj"]("green") is Color.GREEN
+
+    with pytest.raises(ValueError, match="must be one of "):
+        ns["obj"]("blue")
 
 
 def test_arg_alias_raises() -> None:

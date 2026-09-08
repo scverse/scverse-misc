@@ -1,7 +1,6 @@
 import sys
 import typing
 from collections.abc import Callable
-from contextlib import suppress
 from functools import wraps
 from inspect import signature
 from typing import Any, ForwardRef, Literal, Union, get_args, get_origin, get_type_hints
@@ -14,22 +13,22 @@ else:
     from typing_extensions import Format, evaluate_forward_ref, get_annotations
 
 
+# enough to evaluate a legal hint even if the module imports these only under `TYPE_CHECKING`
+_TYPING_NS = {"typing": typing, "Literal": Literal, "Union": Union}
+
+
 def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[object, object], set[object]]:
     try:
         hint = get_type_hints(func)[argname]
     except NameError:
         hint = get_annotations(func, format=Format.FORWARDREF)[argname]
+        if isinstance(hint, str):  # stringified annotation
+            hint = ForwardRef(hint)
         if isinstance(hint, ForwardRef):
-            hint = evaluate_forward_ref(hint)
-        elif isinstance(hint, str):
-            globalns = {}
             try:
-                globalns = func.__globals__
-            except AttributeError:  # possibly a class
-                with suppress(AttributeError, KeyError):
-                    globalns = sys.modules[func.__module__].__dict__
-            globalns.update({"typing": typing, "Literal": Literal, "Union": Union})
-            hint = eval(hint, globalns)
+                hint = evaluate_forward_ref(hint, owner=func)
+            except NameError:  # fall back to custom namespace
+                hint = evaluate_forward_ref(hint, owner=func, locals=_TYPING_NS)
 
     if get_origin(hint) is Literal:
         sets = (hint,)
@@ -95,17 +94,18 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
 
     def wrapper(func: Callable[P, R]) -> Callable[P, R]:
         try:
-            replacements, values = _compute_aliases(func, argname)
+            rv = _compute_aliases(func, argname)
+            sig = signature(func)  # also evaluates annotations, so it can fail too
         except NameError:
-            replacements, values = None, None  # method has a type hint with its class
-
-        sig = signature(func)
+            rv, sig = None, None  # method has a type hint with its class
 
         @wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
-            nonlocal replacements, values
-            if replacements is None or values is None:
-                replacements, values = _compute_aliases(func, argname)
+            nonlocal rv, sig
+            if rv is None or sig is None:
+                rv = _compute_aliases(func, argname)
+                sig = signature(func)
+            replacements, values = rv
 
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
