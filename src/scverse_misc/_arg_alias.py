@@ -31,7 +31,8 @@ def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[objec
             except AttributeError:  # possibly a class
                 with suppress(AttributeError, KeyError):
                     globalns = sys.modules[func.__module__].__dict__
-            hint = eval(hint, globalns, {"typing": typing, "Literal": Literal, "Union": Union})
+            globalns.update({"typing": typing, "Literal": Literal, "Union": Union})
+            hint = eval(hint, globalns)
 
     if get_origin(hint) is Literal:
         sets = (hint,)
