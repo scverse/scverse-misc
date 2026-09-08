@@ -91,14 +91,14 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
 
     # Ensure there are at least two parameters (self and mdata)
     if len(params) < 2:
-        raise TypeError(f"Namespace initializer must accept a {cls.__name__} instance as the second parameter.")
+        msg = f"Namespace initializer must accept a {cls.__name__} instance as the second parameter."
+        raise TypeError(msg)
 
     # Get the second parameter (expected to be `canonical_instance_name`)
     [_, param, *_] = params.values()
     if param.annotation is inspect.Parameter.empty:
-        raise AttributeError(
-            f"Namespace initializer's second parameter must be annotated as the {cls.__name__!r} class, got empty annotation."
-        )
+        msg = f"Namespace initializer's second parameter must be annotated as the {cls.__name__!r} class, got empty annotation."
+        raise AttributeError(msg)
 
     name_ok = param.name == canonical_instance_name
 
@@ -107,9 +107,8 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
         type_hints = get_type_hints(ns_class.__init__)  # type: ignore[misc]  # https://github.com/python/mypy/issues/21236
         resolved_type = type_hints.get(param.name, param.annotation)
     except NameError as e:
-        raise NameError(
-            f"Namespace initializer's second parameter must be named {canonical_instance_name!r}, got '{param.name}'."
-        ) from e
+        msg = f"Namespace initializer's second parameter must be named {canonical_instance_name!r}, got {param.name!r}."
+        raise NameError(msg) from e
 
     type_ok = resolved_type is cls
 
@@ -117,20 +116,19 @@ def _check_namespace_signature(ns_class: type, cls: type, canonical_instance_nam
         case (True, True):
             return  # Signature is correct.
         case (False, True):
-            raise TypeError(
-                f"Namespace initializer's second parameter must be named {canonical_instance_name!r}, got {param.name!r}."
-            )
+            msg = f"Namespace initializer's second parameter must be named {canonical_instance_name!r}, got {param.name!r}."
+            raise TypeError(msg)
         case (True, False):
             type_repr = getattr(resolved_type, "__name__", str(resolved_type))
-            raise TypeError(
-                f"Namespace initializer's second parameter must be annotated as the {cls.__name__!r} class, got {type_repr!r}."
-            )
+            msg = f"Namespace initializer's second parameter must be annotated as the {cls.__name__!r} class, got {type_repr!r}."
+            raise TypeError(msg)
         case _:
             type_repr = getattr(resolved_type, "__name__", str(resolved_type))
-            raise TypeError(
+            msg = (
                 f"Namespace initializer's second parameter must be named {canonical_instance_name!r}, got {param.name!r}. "
                 f"And must be annotated as {cls.__name__!r}, got {type_repr!r}."
             )
+            raise TypeError(msg)
 
 
 def _create_namespace[NameSpT: ExtensionNamespace](
@@ -141,7 +139,8 @@ def _create_namespace[NameSpT: ExtensionNamespace](
     def namespace(ns_class: type[NameSpT]) -> type[NameSpT]:
         _check_namespace_signature(ns_class, cls, canonical_instance_name)  # Perform the runtime signature check
         if name in reserved_namespaces:
-            raise AttributeError(f"cannot override reserved attribute {name!r}")
+            msg = f"cannot override reserved attribute {name!r}"
+            raise AttributeError(msg)
         elif hasattr(cls, name):
             warnings.warn(
                 f"Overriding existing custom namespace {name!r} (on {cls.__name__!r})", UserWarning, stacklevel=2

@@ -121,10 +121,12 @@ def fetch[T](
                     return download(replace(file, url=fallback, fallback_urls=None), dest=dest, processor=processor)
                 except (OSError, ValueError) as e:
                     exceptions.append(e)
-            raise ExceptionGroup(f"Could not download {file.name}", exceptions) from None
+            msg = f"Could not download {file.name}"
+            raise ExceptionGroup(msg, exceptions) from None
 
     if entry.type not in _LOADERS:
-        raise KeyError(f"No loader registered for type {entry.type!r}. Available: {available_loaders()}")
+        msg = f"No loader registered for type {entry.type!r}. Available: {available_loaders()}"
+        raise KeyError(msg)
     return cast("Loader[T]", _LOADERS[entry.type])(entry, target, download, **kwargs)
 
 
@@ -151,5 +153,6 @@ def _load_spatialdata(entry: DatasetEntry, target: Path, download: DownloadCB, /
     download(entry.file(suffix=".zip"), dest=dest, processor=pooch.Unzip(extract_dir="."))
     zarrs = sorted(dest.glob("*.zarr"))
     if len(zarrs) != 1:
-        raise RuntimeError(f"Expected exactly one .zarr extracted under {dest}, found {len(zarrs)}: {zarrs}.")
+        msg = f"Expected exactly one .zarr extracted under {dest}, found {len(zarrs)}: {zarrs}."
+        raise RuntimeError(msg)
     return sd.read_zarr(zarrs[0], **cast("dict[str, Any]", kwargs))
