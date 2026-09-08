@@ -4,20 +4,17 @@ from collections.abc import Callable
 from contextlib import suppress
 from functools import wraps
 from inspect import signature
-from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
+from typing import Any, ForwardRef, Literal, Union, get_args, get_origin, get_type_hints
 
 if sys.version_info >= (3, 14):
     from typing import evaluate_forward_ref
 
-    from annotationlib import Format, ForwardRef, get_annotations
+    from annotationlib import Format, get_annotations
 else:
-    from typing import ForwardRef
-
     from typing_extensions import Format, evaluate_forward_ref, get_annotations
 
 
 def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[object, object], set[object]]:
-    hint = None
     try:
         hint = get_type_hints(func)[argname]
     except NameError:
@@ -39,16 +36,16 @@ def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[objec
     elif get_origin(hint) is Union:
         sets = get_args(hint)
     else:
-        raise TypeError(f"Type hint for argument '{argname}' must be 'Union' or 'Literal', found '{hint}'.")
+        msg = f"Type hint for argument {argname!r} must be 'Union' or 'Literal', found {hint!r}."
+        raise TypeError(msg)
 
     replacements: dict[object, object] = {}
     values = set()
 
     for aliasset in sets:
         if get_origin(aliasset) is not Literal:
-            raise TypeError(
-                f"All type hints specifying aliases for argument '{argname}' must be 'Literal', found '{aliasset}'."
-            )
+            msg = f"All type hints specifying aliases for argument {argname!r} must be 'Literal', found {aliasset!r}."
+            raise TypeError(msg)
         value, *aliases = get_args(aliasset)
         if isinstance(value, ForwardRef):
             value = evaluate_forward_ref(value)
@@ -118,9 +115,8 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
                 bound.arguments[argname] = replacements[argval]
             except KeyError:
                 if argval not in values:
-                    raise ValueError(
-                        f"Argument '{argname}' must be one of {tuple(values) + tuple(replacements.keys())}, got '{argval}'."
-                    ) from None
+                    msg = f"Argument {argname!r} must be one of {tuple(values) + tuple(replacements.keys())}, got {argval!r}."
+                    raise ValueError(msg) from None
             return func(*bound.args, **bound.kwargs)
 
         return wrapped
