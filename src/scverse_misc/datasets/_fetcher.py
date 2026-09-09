@@ -90,7 +90,7 @@ def fetch[T](
         **kwargs: Passed to the loader.
 
     Returns:
-        The absolte path of the downloaded file.
+        The Python object created by loading the ``entry`` with the loader registered for ``entry.type``.
     """
     target = Path(cache_dir) / entry.type
 
