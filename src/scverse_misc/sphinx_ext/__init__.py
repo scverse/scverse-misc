@@ -200,13 +200,12 @@ def _process_deprecated_args(app: Sphinx, deprecations: list[deprecated_arg], li
         if len(deprecation.msg):
             docmsg += f"\n{textwrap.indent(deprecation.msg, '   ')}"
 
-        docmsg_lines = docmsg.splitlines()
-        if len(docmsg_lines) > 1:
-            docmsg = f"\n{indentation}".join(docmsg_lines)
-
         if desc is None:
-            edits.insert(par.range.end, f"\n{docmsg}")
+            # the insertion point is at the end of the name line, so indent every line
+            edits.insert(par.range.end, f"\n{textwrap.indent(docmsg, indentation)}")
         else:
+            # the insertion point is already indented, so only indent continuation lines
+            docmsg = f"\n{indentation}".join(docmsg.splitlines())
             edits.replace(desc.range, f"{docmsg}\n\n{indentation}{desc.text}")
 
     lines[:] = edits.apply().splitlines()
