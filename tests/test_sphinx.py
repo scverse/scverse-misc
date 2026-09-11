@@ -4,7 +4,8 @@ from functools import cache
 import pytest
 
 pytest.importorskip("scverse_misc.sphinx_ext")
-from scverse_misc.sphinx_ext import _member_type
+from scverse_misc._utils import mark_decorator
+from scverse_misc.sphinx_ext import _function_type, _member_type
 
 
 class DummyCls:
@@ -33,6 +34,13 @@ class DummyCls:
         return 4.13
 
 
+def plain_func() -> None: ...
+
+
+@mark_decorator
+def deco() -> None: ...
+
+
 alias = sys.modules[__name__]
 
 
@@ -52,3 +60,9 @@ def test_member_type(attrname: str, attrtype: str) -> None:
     alias_path = f"{__name__}.alias.DummyCls.{{}}"
     assert _member_type(obj_path.format(attrname)) == attrtype
     assert _member_type(alias_path.format(attrname)) == attrtype
+
+
+@pytest.mark.parametrize(["funcname", "functype"], (("plain_func", "function"), ("deco", "decorator")))
+def test_function_type(funcname: str, functype: str) -> None:
+    assert _function_type(f"{__name__}.{funcname}") == functype
+    assert _function_type(f"{__name__}.alias.{funcname}") == functype
