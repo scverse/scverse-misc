@@ -2,4 +2,4 @@
 
 .. currentmodule:: {{ module }}
 
-.. auto{{ fullname | function_type }}:: {{ objname }}
+.. auto{{ "decorator" if fullname | is_decorator else "function" }}:: {{ objname }}

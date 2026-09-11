@@ -57,7 +57,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.connect("autodoc-process-bases", _skip_private_bases)
 
     DEFAULT_FILTERS["member_type"] = _member_type
-    DEFAULT_FILTERS["function_type"] = _function_type
+    DEFAULT_FILTERS["is_decorator"] = _is_decorator
 
     app.config.templates_path = list(app.config.templates_path) + [str(Path(__file__).parent / "templates")]
 
@@ -113,20 +113,21 @@ def _member_type(obj_path: str) -> Literal["method", "property", "attribute"]:
             return "attribute"
 
 
-def _function_type(obj_path: str) -> Literal["function", "decorator"]:
-    """Determine if a function is a decorator, i.e. marked with `_utils.mark_decorator`.
+def _is_decorator(obj_path: str) -> bool:
+    """Determine if a function or class is a decorator, i.e. marked with `_utils.mark_decorator`.
 
-    E.g.: `.. auto{{ fullname | function_type }}::`
+    E.g.: `{% if fullname | is_decorator %}`
     """
-    mod_path, func_name = obj_path.rsplit(".", 1)
+    mod_path, obj_name = obj_path.rsplit(".", 1)
     try:
-        func = import_object(mod_path, [func_name], "function")[-1]
+        obj = import_object(mod_path, [obj_name], "decorator")[-1]
     except ImportError:
         _logger.error(
-            f"Failed to import {func_name} from {mod_path}; the following exception was rased: {traceback.format_exc()}"
+            f"Failed to import {obj_name} from {mod_path}; the following exception was rased: {traceback.format_exc()}"
         )
-        return "function"
-    return "decorator" if getattr(func, ATTR_DECORATOR, False) else "function"
+        return False
+    # a class attribute would be inherited by subclasses, which aren’t necessarily decorators
+    return ATTR_DECORATOR in vars(obj)
 
 
 def _process_docstring(
