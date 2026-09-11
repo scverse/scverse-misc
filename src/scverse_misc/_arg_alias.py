@@ -79,14 +79,14 @@ def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]
         argname: The name of the argument to alias.
 
     Examples:
-        >>> @axis_arg("axis")
+        >>> @arg_alias("axis")
         ... def foo(x: int, axis: Literal[0, "obs"]):
         ...     return axis
         ...
         ...
         ... assert foo(42, 0) == foo(42, "obs") == 0
 
-        >>> @axis_arg("axis")
+        >>> @arg_alias("axis")
         ... def foo(x: float, axis: Literal[0, "obs"] | Literal[1, "var", "vars"]):
         ...     return axis
         ...
