@@ -25,7 +25,7 @@ from sphinx.util import logging
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._extensions import _NSInfo
-from .._utils import get_packagename, type_str
+from .._utils import ATTR_DECORATOR, get_packagename, type_str
 from ..constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG, ATTR_NAMESPACE
 
 try:
@@ -57,6 +57,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.connect("autodoc-process-bases", _skip_private_bases)
 
     DEFAULT_FILTERS["member_type"] = _member_type
+    DEFAULT_FILTERS["is_decorator"] = _is_decorator
 
     app.config.templates_path = list(app.config.templates_path) + [str(Path(__file__).parent / "templates")]
 
@@ -110,6 +111,23 @@ def _member_type(obj_path: str) -> Literal["method", "property", "attribute"]:
             return "method"
         case _:
             return "attribute"
+
+
+def _is_decorator(obj_path: str) -> bool:
+    """Determine if a function or class is a decorator, i.e. marked with `_utils.mark_decorator`.
+
+    E.g.: `{% if fullname | is_decorator %}`
+    """
+    mod_path, obj_name = obj_path.rsplit(".", 1)
+    try:
+        obj = import_object(mod_path, [obj_name], "decorator")[-1]
+    except ImportError:
+        _logger.error(
+            f"Failed to import {obj_name} from {mod_path}; the following exception was rased: {traceback.format_exc()}"
+        )
+        return False
+    # a class attribute would be inherited by subclasses, which aren’t necessarily decorators
+    return ATTR_DECORATOR in vars(obj)
 
 
 def _process_docstring(
