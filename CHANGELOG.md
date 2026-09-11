@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
+## [0.1.6]
+
+### Fixed
+
+- `deprecated_arg` now indents the `version-deprecated` directive correctly for parameters without a description
+  (previously it was rendered as a separate parameter).
+
 ## [0.1.5]
 
 ### Added
@@ -128,6 +135,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.1.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.6
 [0.1.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.5
 [0.1.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.4
 [0.1.3]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.3

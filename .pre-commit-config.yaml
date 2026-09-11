@@ -48,6 +48,7 @@ repos:
       - pytest
       - sphinx
       - sphinxcontrib-katex
+      - types-docutils
       - types-PyYAML
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: cef8b8350da46d8114c7e6b7272aebdccdf193ce  # frozen: v1.30.0
