@@ -9,6 +9,8 @@ if sys.version_info >= (3, 13):
 else:
     from typing_extensions import deprecated as _deprecated
 
+from .._utils import mark_decorator
+
 if TYPE_CHECKING:
     from types import FunctionType
 
@@ -17,6 +19,7 @@ if TYPE_CHECKING:
 __all__ = ["deprecated", "_deprecated"]
 
 
+@mark_decorator
 class deprecated(_deprecated):
     """Decorator to indicate that a class, function, or overload is deprecated.
 

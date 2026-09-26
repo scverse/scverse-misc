@@ -12,6 +12,7 @@ import warnings
 from itertools import islice
 from typing import TYPE_CHECKING, NamedTuple, Protocol, get_type_hints, overload, runtime_checkable
 
+from ._utils import mark_decorator
 from .constants import ATTR_NAMESPACE
 
 if TYPE_CHECKING:
@@ -212,6 +213,7 @@ def make_register_namespace_decorator[NameSpT: ExtensionNamespace](
     # Reserved namespaces include accessors built into cls and all current attributes of cls
     reserved_namespaces = set(dir(cls))
 
+    @mark_decorator
     def decorator(name: str) -> Callable[[type[NameSpT]], type[NameSpT]]:
         return _create_namespace(name, cls, reserved_namespaces, canonical_instance_name)
 
