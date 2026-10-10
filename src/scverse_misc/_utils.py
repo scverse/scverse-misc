@@ -49,6 +49,19 @@ def copy_func[F: FunctionType](func: F, /, **overrides: Unpack[Overrides]) -> F:
     return cast("F", wrapper)
 
 
+#: Undocumented marker read by our sphinx extension, see `mark_decorator`.
+ATTR_DECORATOR = "__scverse_misc_decorator__"
+
+
+def mark_decorator[F: Callable[..., object]](func: F, /) -> F:
+    """Mark `func` as a decorator, so our autosummary templates use `autodecorator` for it.
+
+    `sphinx.ext.autosummary` can’t tell a decorator from any other function.
+    """
+    setattr(func, ATTR_DECORATOR, True)
+    return func
+
+
 def package_prefixes(mod_name: str | None) -> list[str]:
     """Root directory of `mod_name`’s package, its own file if it isn’t in one, `None` if unimported."""
     if mod_name is None:

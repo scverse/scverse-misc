@@ -4,6 +4,8 @@ from collections.abc import Callable
 from functools import partial, wraps
 from typing import Any, ForwardRef, Literal, Union, get_args, get_origin, get_type_hints
 
+from ._utils import mark_decorator
+
 if sys.version_info >= (3, 14):  # annotations can be ForwardRef
     from inspect import signature as _signature
     from typing import evaluate_forward_ref
@@ -59,6 +61,7 @@ def _compute_aliases(func: Callable[..., Any], argname: str) -> tuple[dict[objec
     return replacements, values
 
 
+@mark_decorator
 def arg_alias[**P, R](argname: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """Decorator to specify aliases for function arguments that accept a fixed set of values.
 

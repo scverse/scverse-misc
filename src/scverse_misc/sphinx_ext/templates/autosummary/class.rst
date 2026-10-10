@@ -4,7 +4,7 @@
 
 .. add toctree option to make autodoc generate the pages
 
-.. autoclass:: {{ fullname }}
+.. auto{{ "decorator" if fullname | is_decorator else "class" }}:: {{ fullname }}
 
 {% set methods = methods | select("ne", "__init__") | list %}
 

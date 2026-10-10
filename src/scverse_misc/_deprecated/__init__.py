@@ -5,7 +5,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
-from .._utils import caller_skip_prefixes, warn_outside
+from .._utils import caller_skip_prefixes, mark_decorator, warn_outside
 from ..constants import ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
@@ -49,6 +49,7 @@ class CallableWithDeprecatedArg[**P, R](Protocol):
     def __call__(*args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
+@mark_decorator
 class deprecated_arg:
     """Decorator to indicate that a function argument is deprecated.
 
