@@ -45,18 +45,13 @@ test = [ "coverage>=7.10", "pytest" ]
 doc = [
   "ipykernel",
   "ipython",
-  "myst-nb>=1.1",
   "pandas",
+  "scverse-doc[full]>=0.1.1",
   "scverse-misc[datasets,settings,sphinx]",
-  "sphinx>=8.1",
   "sphinx-autodoc-typehints",
-  "sphinx-book-theme>=1",
   "sphinx-codeautolink",
-  "sphinx-copybutton",
-  "sphinx-design",
   "sphinxcontrib-bibtex>=1",
   "sphinxcontrib-katex",
-  "sphinxext-opengraph",
 ]
 
 [tool.hatch]
