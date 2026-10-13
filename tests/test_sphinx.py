@@ -4,7 +4,8 @@ from functools import cache
 import pytest
 
 pytest.importorskip("scverse_misc.sphinx_ext")
-from scverse_misc.sphinx_ext import _member_type
+from scverse_misc._utils import mark_decorator
+from scverse_misc.sphinx_ext import _is_decorator, _member_type
 
 
 class DummyCls:
@@ -33,6 +34,20 @@ class DummyCls:
         return 4.13
 
 
+def plain_func() -> None: ...
+
+
+@mark_decorator
+def deco() -> None: ...
+
+
+@mark_decorator
+class DecoCls: ...
+
+
+class DecoSubCls(DecoCls): ...
+
+
 alias = sys.modules[__name__]
 
 
@@ -52,3 +67,18 @@ def test_member_type(attrname: str, attrtype: str) -> None:
     alias_path = f"{__name__}.alias.DummyCls.{{}}"
     assert _member_type(obj_path.format(attrname)) == attrtype
     assert _member_type(alias_path.format(attrname)) == attrtype
+
+
+@pytest.mark.parametrize(
+    ["objname", "is_deco"],
+    (
+        ("plain_func", False),
+        ("deco", True),
+        ("DummyCls", False),
+        ("DecoCls", True),
+        ("DecoSubCls", False),  # the marker must not be inherited
+    ),
+)
+def test_is_decorator(objname: str, is_deco: bool) -> None:
+    assert _is_decorator(f"{__name__}.{objname}") == is_deco
+    assert _is_decorator(f"{__name__}.alias.{objname}") == is_deco
