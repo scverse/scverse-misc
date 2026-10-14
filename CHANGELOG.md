@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [0.1.7]
+
 ### Changed
 
 - The autosummary templates, hiding private bases, and prose return sections have moved to
@@ -143,6 +145,7 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.1.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.7
 [0.1.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.6
 [0.1.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.5
 [0.1.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.4
