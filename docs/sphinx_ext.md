@@ -9,12 +9,10 @@ For example, using the [deprecated decorator](#scverse_misc.deprecated) adds a d
 To use the extension, add `"scverse_misc.sphinx_ext"` to your extensions array in `conf.py`.
 The extension requires `scverse_misc` to be installed with the `sphinx` extra.
 
-The extension also ships and enables several templates for `sphinx.ext.autosummary`.
+The extension also sets up [scverse-doc](https://github.com/scverse/scverse-doc)’s `scverse_doc.autodoc` and `scverse_doc.napoleon`,
+which provide templates for `sphinx.ext.autosummary` and support for prose return sections in NumPy-style docstrings.
 These were previously part of the [scverse cookiecutter template](https://github.com/scverse/cookiecutter-scverse).
-This keeps the cookiecutter template lean and ensures that scverse packages have a consistent documentation design, even if some packages are not updating the cookiecutter template.
 If you have custom autosummary templates in your package, they will still be used.
-
-Similarly, support for prose return sections in NumPy-style docstrings, previously part of cookiecutter-scverse, is now provided here.
 
 # Examples
 

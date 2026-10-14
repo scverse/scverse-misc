@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
+## [Unreleased]
+
+### Changed
+
+- The autosummary templates, hiding private bases, and prose return sections have moved to
+  [scverse-doc](https://github.com/scverse/scverse-doc) as `scverse_doc.autodoc` and `scverse_doc.napoleon`.
+  The `sphinx` extra now depends on scverse-doc, and `scverse_misc.sphinx_ext` sets those extensions up, so nothing changes for users.
+
 ## [0.1.6]
 
 ### Fixed
