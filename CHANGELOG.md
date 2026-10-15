@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning][].
 - An `arg_alias` decorator that simplifies handling of function arguments taking on one of a fixed set of values, where
   each value may have multiple aliases (e.g. the `axis` argument of many scverse functions).
 
-# [0.1.4]
+## [0.1.4]
 
 ### Added
 
