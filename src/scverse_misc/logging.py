@@ -57,7 +57,8 @@ _FORMAT = "{message}{elapsed}{detail}"  # rich renders the level itself; plain p
 def _make_handler(use_rich: bool) -> logging.Handler:
     if use_rich:
         if not _rich_available():
-            raise ImportError("rich is not installed; install scverse-misc[rich] or leave config.rich as None/False")
+            msg = "rich is not installed; install scverse-misc[rich] or leave config.rich as None/False"
+            raise ImportError(msg)
         from rich.console import Console
         from rich.logging import RichHandler
 
@@ -92,11 +93,13 @@ def _canonical_level(value: str | int) -> str:
     """Validate and normalize a level to a canonical name (e.g. ``"WARNING"``)."""
     if isinstance(value, str):
         if not isinstance(logging.getLevelName(value.upper()), int):
-            raise ValueError(f"unknown log level name: {value!r}")
+            msg = f"unknown log level name: {value!r}"
+            raise ValueError(msg)
         return value.upper()
     name = logging.getLevelName(value)
     if name.startswith("Level "):
-        raise ValueError(f"unknown log level: {value!r}")
+        msg = f"unknown log level: {value!r}"
+        raise ValueError(msg)
     return name
 
 

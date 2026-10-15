@@ -8,9 +8,7 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/
 [semantic versioning]: https://semver.org/spec/
 
-# [0.1.5] (Unreleased)
-
-### Added
+## [Unreleased]
 
 - A shared `logging` module: one `scverse` parent logger with a single handler (rich if
   installed, else plain), package loggers as children, `config.add_filter` for custom
@@ -18,6 +16,28 @@ and this project adheres to [Semantic Versioning][].
   travels as record attributes and is rendered by the formatter, never baked into the message.
   Works with no extra dependencies; installing `scverse-misc[logging]` (i.e. `pydantic`)
   additionally gives validate-on-assignment for the `verbosity`/`rich` config fields.
+
+## [0.1.7]
+
+### Changed
+
+- The autosummary templates, hiding private bases, and prose return sections have moved to
+  [scverse-doc](https://github.com/scverse/scverse-doc) as `scverse_doc.autodoc` and `scverse_doc.napoleon`.
+  The `sphinx` extra now depends on scverse-doc, and `scverse_misc.sphinx_ext` sets those extensions up, so nothing changes for users.
+
+## [0.1.6]
+
+### Fixed
+
+- `deprecated_arg` now indents the `version-deprecated` directive correctly for parameters without a description
+  (previously it was rendered as a separate parameter).
+
+## [0.1.5]
+
+### Added
+
+- An `arg_alias` decorator that simplifies handling of function arguments taking on one of a fixed set of values, where
+  each value may have multiple aliases (e.g. the `axis` argument of many scverse functions).
 
 # [0.1.4]
 
@@ -135,6 +155,9 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[0.1.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.7
+[0.1.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.6
+[0.1.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.5
 [0.1.4]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.4
 [0.1.3]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.3
 [0.1.2]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.2

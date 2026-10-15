@@ -19,6 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
 dynamic = [ "version" ]
 dependencies = [
@@ -31,7 +32,7 @@ optional-dependencies.logging = [ "pydantic" ]
 optional-dependencies.rich = [ "rich" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
-optional-dependencies.sphinx = [ "jinja2", "pydocstring-rs>=0.4.1", "sphinx>=9" ]
+optional-dependencies.sphinx = [ "jinja2", "pydocstring-rs>=0.4.1", "scverse-doc", "sphinx>=9" ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://scverse-misc.readthedocs.io/"
 urls.Homepage = "https://github.com/scverse/scverse-misc"
@@ -47,18 +48,13 @@ doc = [
   "anndata",                                        # resolves the anndata loader's type hints during doc builds
   "ipykernel",
   "ipython",
-  "myst-nb>=1.1",
   "pandas",
+  "scverse-doc[full]>=0.1.1",
   "scverse-misc[datasets,logging,settings,sphinx]",
-  "sphinx>=8.1",
   "sphinx-autodoc-typehints",
-  "sphinx-book-theme>=1",
   "sphinx-codeautolink",
-  "sphinx-copybutton",
-  "sphinx-design",
   "sphinxcontrib-bibtex>=1",
   "sphinxcontrib-katex",
-  "sphinxext-opengraph",
 ]
 
 [tool.hatch]
@@ -91,8 +87,8 @@ envs.hatch-test.overrides.matrix.feature-set.features = [
   { value = "datasets", if = [ "full" ] },
   { value = "spatialdata", if = [ "full" ] },
   { value = "settings", if = [ "full" ] },
-  { value = "logging", if = [ "full" ] },  # pydantic tier of the logging config
-  { value = "rich", if = [ "full" ] },  # exercise the rich handler tier
+  { value = "logging", if = [ "full" ] },          # pydantic tier of the logging config
+  { value = "rich", if = [ "full" ] },             # exercise the rich handler tier
 ]
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
 
@@ -108,6 +104,7 @@ lint.select = [
   "C4",     # flake8-comprehensions
   "D",      # pydocstyle
   "E",      # Error detected by Pycodestyle
+  "EM",     # Error messages
   "F",      # Errors detected by Pyflakes
   "I",      # isort
   "RUF100", # Report unused noqa directives
@@ -137,7 +134,7 @@ lint.per-file-ignores."tests/*" = [ "D" ]
 lint.pydocstyle.convention = "google"
 
 [tool.mypy]
-mypy_path = [ "$MYPY_CONFIG_FILE_DIR/stubs", "$MYPY_CONFIG_FILE_DIR/src" ]
+mypy_path = [ "$MYPY_CONFIG_FILE_DIR/stubs", "$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/tests/_pkgs" ]
 explicit_package_bases = true
 strict = true
 

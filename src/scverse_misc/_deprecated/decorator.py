@@ -26,7 +26,10 @@ class deprecated(_deprecated):
     Args:
         msg: The deprecation message.
         category: The category of the warning that will be emitted at runtime.
-        stacklevel: The stack level of the warning.
+        stacklevel: The stack level of the warning. Unlike :class:`~scverse_misc.deprecated_arg`,
+            this can’t be worked out automatically: :func:`warnings.deprecated` emits the warning
+            itself with a fixed level, so any decorator stacked on top of this one has to be
+            counted here by hand. See https://github.com/python/cpython/issues/156929.
 
     Examples:
         >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
@@ -47,7 +50,7 @@ class deprecated(_deprecated):
 
         if TYPE_CHECKING:
             assert isinstance(func, FunctionType)
-        kind = "function" if func.__name__ == func.__qualname__ else "method"
+        kind = "class" if isinstance(func, type) else "function" if func.__name__ == func.__qualname__ else "method"
         warnmsg = f"The {kind} {func.__name__} is deprecated and will be removed in the future"
         if len(self.message):
             warnmsg += f". {self.message}" if self.message.count("\n") == 0 else f":\n{indent(self.message, 4 * ' ')}"
