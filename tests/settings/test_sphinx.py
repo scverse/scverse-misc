@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# This module needs pydantic-settings; skip the whole file when it is absent (before importing it).
+import pytest
+
+pytest.importorskip("pydantic_settings")
+
 import inspect
 import sys
 from typing import Annotated, Literal
@@ -9,9 +14,8 @@ if sys.version_info >= (3, 13):
 else:
     from typing_extensions import deprecated as stdlib_deprecated
 
-import pytest
-
 pytest.importorskip("scverse_misc.sphinx_ext")
+
 from pydantic import Field
 from pydantic.fields import FieldInfo
 from sphinx.application import Sphinx

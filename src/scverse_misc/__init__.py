@@ -13,6 +13,7 @@ __all__ = [
     "arg_alias",
 ]
 
+# Settings needs pydantic-settings; only exported when scverse-misc[settings] is installed.
 with suppress(ImportError):
     from ._settings import Settings  # noqa: F401
 
