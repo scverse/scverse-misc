@@ -136,6 +136,7 @@ lint.pydocstyle.convention = "google"
 [tool.mypy]
 mypy_path = [ "$MYPY_CONFIG_FILE_DIR/stubs", "$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/tests/_pkgs" ]
 explicit_package_bases = true
+enable_error_code = [ "deprecated" ]
 strict = true
 
 [tool.pytest]

@@ -1,24 +1,20 @@
-"""Shared logger for scverse packages.
+"""Shared logging for scverse packages.
 
-Skeleton: one ``scverse`` parent logger owning a single handler (rich if
-installed, else plain), with package loggers as children. Control via
-:data:`config`; attach any :class:`logging.Filter` with :meth:`LogConfig.add_filter`.
+Each package gets a child of the ``scverse`` logger via :func:`get_logger`,
+so users control all scverse packages’ output in one place with :data:`config`
+(verbosity, rich output, filters).
 
-Records stay untouched: context travels as record attributes (``time_passed``,
-``deep``), and only the text formatter renders them (into ``{extra}``). A JSON handler attached
-next to ours sees the original message plus those attributes, never a
-pre-rendered string.
-
-- ``record.time_passed`` (a ``timedelta``) renders as an appended ``(H:MM:SS)``.
-- ``record.deep`` renders as an appended ``: detail``.
-
-scanpy's ``time=`` / ``deep=`` keywords and the ``-> datetime`` return are a
-call-site concern, so they live in an **opt-in** logger::
+:func:`get_logger` with ``timed=True`` returns a :class:`TimedLogger`,
+which supports scanpy-style ``time=`` and ``deep=`` arguments
+(``deep`` is only shown if verbosity is higher than the message’s level)::
 
     log = get_logger("scanpy", timed=True)
-    t = log.info("normalizing")  # returns a datetime
+    t = log.info("normalizing")  # returns the current time
     log.info("finished", time=t)  # -> "finished (0:00:03)"
-    log.info("done", time=t, deep="42 cells dropped")
+    log.info("done", deep="42 cells dropped")  # -> "done: 42 cells dropped"
+
+The elapsed time and details are stored as ``time_passed`` and ``deep`` attributes on the log record,
+so custom handlers (e.g. for structured logging) receive them unformatted.
 """
 
 from __future__ import annotations
@@ -99,7 +95,7 @@ except ImportError:
 def _canonical_level(value: str | int) -> str:
     """Validate and normalize a level to a canonical name (e.g. ``"WARNING"``)."""
     if isinstance(value, str):
-        if not isinstance(logging.getLevelName(value.upper()), int):
+        if value.upper() not in logging.getLevelNamesMapping():
             msg = f"unknown log level name: {value!r}"
             raise ValueError(msg)
         return value.upper()
