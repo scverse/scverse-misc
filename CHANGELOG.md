@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
-- A shared `logging` module: one `scverse` parent logger with a single handler (rich if
-  installed, else plain), package loggers as children, `config.add_filter` for custom
-  `logging.Filter`s, and an opt-in scanpy-style `TimedLogger`. Context (`time_passed`, `deep`)
-  travels as record attributes and is rendered by the formatter, never baked into the message.
-  Works with no extra dependencies; installing `scverse-misc[logging]` (i.e. `pydantic`)
-  additionally gives validate-on-assignment for the `verbosity`/`rich` config fields.
+### Added
+
+- A `logging` module: packages get a child of the shared `scverse` logger via `get_logger`,
+  whose output users control in one place with `logging.config` (verbosity, rich output, filters).
+  `get_logger(..., timed=True)` supports scanpy-style `time=` and `deep=` arguments.
+  Install `scverse-misc[logging]` for validated config fields.
 
 ## [0.1.7]
 
@@ -72,21 +72,18 @@ and this project adheres to [Semantic Versioning][].
 - Allow the Sphinx extension to go anywhere in the `conf.py` extension list.
 - `anndata` isn’t a core dependency anymore again.
 
-### Added
-
-- A reusable `datasets` subpackage (behind the `datasets` extra): typed `DatasetEntry`/
-  `FileEntry` + `parse_registry` (YAML), a thin pooch-based `fetch` (SHA-256 verification,
-  retries, archive processors), and a pluggable `type -> loader` registry
-  (`register_loader`) so packages can share dataset-download infrastructure. Ships built-in
-  `anndata` and `spatialdata` loaders (`spatialdata` behind the `spatialdata` extra;
-  `anndata` provided by the consumer, as scverse-misc does not depend on it); other
-  types are consumer-registered.
-
 ## [0.0.9]
 
 ### Added
 
 - A Sphinx extension to take care of documentation. This moves docstring processing from import time to documentation building time.
+- A reusable `datasets` subpackage (behind the `datasets` extra): typed `DatasetEntry`/
+  `FileEntry` + `parse_registry` (YAML), a thin pooch-based `fetch` (SHA-256 verification,
+  retries, archive processors), and a pluggable `type -> loader` registry
+  (`register_loader`) so packages can share dataset-download infrastructure. Ships built-in
+  `anndata` and `spatialdata` loaders (the latter behind the `spatialdata` extra); other
+  types are consumer-registered.
+- `anndata` is now a core dependency.
 
 ### Changed
 
