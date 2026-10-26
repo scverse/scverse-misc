@@ -5,7 +5,7 @@ installed, else plain), with package loggers as children. Control via
 :data:`config`; attach any :class:`logging.Filter` with :meth:`LogConfig.add_filter`.
 
 Records stay untouched: context travels as record attributes (``time_passed``,
-``deep``), and only the text formatter renders them. A JSON handler attached
+``deep``), and only the text formatter renders them (into ``{extra}``). A JSON handler attached
 next to ours sees the original message plus those attributes, never a
 pre-rendered string.
 
@@ -25,7 +25,10 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Literal, Self, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, cast, overload, override
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 __all__ = ["LogConfig", "TimedLogger", "config", "get_logger"]
 
@@ -34,24 +37,27 @@ HINT = (logging.INFO + logging.DEBUG) // 2  # 15; used by the timed logger
 logging.addLevelName(HINT, "HINT")
 
 
-class _Extras(logging.Filter):
-    """Turn the optional ``time_passed``/``deep`` record attributes into render-ready fields.
+class _Formatter(logging.Formatter):
+    """``{``-style formatter that renders ``{extra}`` from optional record attributes.
 
-    Sets ``record.elapsed`` / ``record.detail`` on *every* record (empty when absent)
-    so the ``{``-style formatter never hits a missing key. The message itself is
-    never modified.
+    Each entry in ``extra`` maps a record attribute to a fragment that is appended
+    only if the record carries that attribute (and it isn't ``None``).
+    Formatting happens here only, so records keep their raw values.
     """
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        td = getattr(record, "time_passed", None)
-        # None or zero -> nothing (matches scanpy); strip sub-second noise
-        record.elapsed = f" ({timedelta(seconds=int(td.total_seconds()))})" if td else ""
-        deep = getattr(record, "deep", None)
-        record.detail = "" if deep is None else f": {deep}"
-        return True
+    def __init__(self, fmt: str, extra: Mapping[str, str]) -> None:
+        super().__init__(fmt, style="{")
+        self.extra = extra
+
+    @override
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        values = vars(record)
+        extra = "".join(frag.format_map(values) for attr, frag in self.extra.items() if values.get(attr) is not None)
+        return self._fmt.format_map({**values, "extra": extra})  # type: ignore[union-attr]
 
 
-_FORMAT = "{message}{elapsed}{detail}"  # rich renders the level itself; plain prefixes it
+_FORMAT = "{message}{extra}"  # rich renders the level itself; plain prefixes it
+_FORMAT_EXTRA = dict(time_passed=" ({time_passed})", deep=": {deep}")
 
 
 def _make_handler(use_rich: bool) -> logging.Handler:
@@ -64,10 +70,10 @@ def _make_handler(use_rich: bool) -> logging.Handler:
 
         # stderr to match the plain handler (and scanpy)
         handler: logging.Handler = RichHandler(console=Console(stderr=True), show_path=False, show_time=False)
-        handler.setFormatter(logging.Formatter(_FORMAT, style="{"))
+        handler.setFormatter(_Formatter(_FORMAT, _FORMAT_EXTRA))
         return handler
     handler = logging.StreamHandler()  # defaults to stderr
-    handler.setFormatter(logging.Formatter(f"{{levelname}}: {_FORMAT}", style="{"))
+    handler.setFormatter(_Formatter(f"{{levelname}}: {_FORMAT}", _FORMAT_EXTRA))
     return handler
 
 
@@ -107,7 +113,7 @@ def _reinstall(verbosity: str | int, rich: bool | None) -> None:
     """Apply ``verbosity`` + ``rich`` to the shared ``scverse`` logger.
 
     Swaps the handler only when the rich state actually changed, carrying any
-    registered filters across; on first call it seeds :class:`_Extras`.
+    registered filters across.
     """
     root = logging.getLogger(_ROOT)
     root.propagate = False  # one handler here; don't double-log via root
@@ -116,7 +122,7 @@ def _reinstall(verbosity: str | int, rich: bool | None) -> None:
     current = root.handlers[0] if root.handlers else None
     # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
     if current is None or isinstance(current, logging.StreamHandler) == use_rich:
-        filters = list(current.filters) if current else [_Extras()]  # carry filters across
+        filters = list(current.filters) if current else []  # carry filters across
         for h in list(root.handlers):
             root.removeHandler(h)
         handler = _make_handler(use_rich)
@@ -244,7 +250,8 @@ class TimedLogger:
         if self._logger.isEnabledFor(level):
             extra: dict[str, object] = {}
             if time is not None:
-                extra["time_passed"] = now - time  # thread the returned value (both naive)
+                # thread the returned value (both naive); strip sub-second noise
+                extra["time_passed"] = timedelta(seconds=int((now - time).total_seconds()))
             if deep is not None and self._logger.getEffectiveLevel() < level:
                 extra["deep"] = deep
             # stacklevel=3: skip _emit + the level method so the call-site is the caller

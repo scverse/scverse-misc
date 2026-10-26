@@ -157,8 +157,8 @@ def test_verbosity_rejects_unknown_level() -> None:
     assert config.verbosity == "WARNING"  # rejected assignment leaves the value untouched
 
 
-def test_extras_filter_installed_by_default() -> None:
-    assert any(isinstance(f, mod._Extras) for f in config._filters)
+def test_extras_rendered_by_formatter() -> None:
+    assert isinstance(config._root.handlers[0].formatter, mod._Formatter)
 
 
 def test_hint_level_registered() -> None:
