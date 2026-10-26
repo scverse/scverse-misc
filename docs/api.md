@@ -24,7 +24,7 @@ Types used by the former:
     ExtensionNamespace
 ```
 
-*Examples:* {ref}`example-extension-namespaces`
+_Examples:_ {ref}`example-extension-namespaces`
 
 (deprecations)=
 ## Deprecations
@@ -38,7 +38,7 @@ Types used by the former:
    Deprecation
 ```
 
-*Examples:* {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
+_Examples:_ {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
 
 (settings)=
 ## Settings
@@ -55,10 +55,11 @@ Types used by the former:
    Settings
 ```
 
-*Examples:* {ref}`example-settings-class`
+_Examples:_ {ref}`example-settings-class`
 
 (arg_alias)=
 ## Argument value aliasing
+
 ```{eval-rst}
 .. autosummary::
    :toctree: generated
