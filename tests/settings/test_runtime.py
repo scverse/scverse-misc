@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+# This module needs pydantic-settings; skip the whole file when it is absent (before importing it).
+import pytest
+
+pytest.importorskip("pydantic_settings")
+
 import inspect
 import sys
 from contextlib import chdir, nullcontext
 from pathlib import Path
 from typing import Annotated, Literal, get_args, get_origin
 
-import pytest
 from pydantic import Field, ValidationError
 from pydantic_settings import SettingsConfigDict
 

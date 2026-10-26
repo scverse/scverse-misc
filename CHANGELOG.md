@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+### Added
+
+- A `logging` module: packages get a child of the shared `scverse` logger via `get_logger`,
+  whose output users control in one place with `logging.config` (verbosity, rich output, filters).
+  `get_logger(..., timed=True)` supports scanpy-style `time=` and `deep=` arguments.
+  Install `scverse-misc[logging]` for validated config fields.
+
 ## [0.1.7]
 
 ### Changed
@@ -84,7 +91,7 @@ and this project adheres to [Semantic Versioning][].
 
 ### Fixed
 
-- Marking a setting as `Field(deprecated=...)` will show a deprecation notice in the documentaiton.
+- Marking a setting as `Field(deprecated=...)` will show a deprecation notice in the documentation.
 
 ## [0.0.8]
 

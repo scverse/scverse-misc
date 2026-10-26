@@ -28,6 +28,8 @@ dependencies = [
   "typing-extensions; python_version<'3.13'",
 ]
 optional-dependencies.datasets = [ "anndata", "pooch", "pyyaml", "tqdm" ]
+optional-dependencies.logging = [ "pydantic" ]
+optional-dependencies.rich = [ "rich" ]
 optional-dependencies.settings = [ "pydantic-settings", "python-dotenv" ]
 optional-dependencies.spatialdata = [ "spatialdata" ]
 optional-dependencies.sphinx = [ "jinja2", "pydocstring-rs>=0.4.1", "scverse-doc", "sphinx>=9" ]
@@ -43,11 +45,12 @@ dev = [
 ]
 test = [ "coverage>=7.10", "pytest" ]
 doc = [
+  "anndata",                                        # resolves the anndata loader's type hints during doc builds
   "ipykernel",
   "ipython",
   "pandas",
   "scverse-doc[full]>=0.1.1",
-  "scverse-misc[datasets,settings,sphinx]",
+  "scverse-misc[datasets,logging,settings,sphinx]",
   "sphinx-autodoc-typehints",
   "sphinx-codeautolink",
   "sphinxcontrib-bibtex>=1",
@@ -84,6 +87,8 @@ envs.hatch-test.overrides.matrix.feature-set.features = [
   { value = "datasets", if = [ "full" ] },
   { value = "spatialdata", if = [ "full" ] },
   { value = "settings", if = [ "full" ] },
+  { value = "logging", if = [ "full" ] },          # pydantic tier of the logging config
+  { value = "rich", if = [ "full" ] },             # exercise the rich handler tier
 ]
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
 
@@ -131,6 +136,7 @@ lint.pydocstyle.convention = "google"
 [tool.mypy]
 mypy_path = [ "$MYPY_CONFIG_FILE_DIR/stubs", "$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/tests/_pkgs" ]
 explicit_package_bases = true
+enable_error_code = [ "deprecated" ]
 strict = true
 
 [tool.pytest]

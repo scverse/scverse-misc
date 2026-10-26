@@ -242,7 +242,7 @@ def _process_settings_method_override(app: Sphinx, method: MethodType, lines: li
 def _process_settings_method_reset(app: Sphinx, method: MethodType, lines: list[str], *, add_annot: bool) -> None:
     settings = cast("Settings", method.__self__)
 
-    annot = f"typing.Literal[{', '.join(settings.model_fields.keys())}]" if add_annot else None
+    annot = f"typing.Literal[{', '.join(type(settings).model_fields.keys())}]" if add_annot else None
     desc = "Names of settings to reset."
     names_param = Parameter(["names"], type_annotation=annot, description=desc, is_optional=True)
     model = parse("\n".join(lines)).to_model()
