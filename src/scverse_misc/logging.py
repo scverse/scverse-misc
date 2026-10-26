@@ -25,10 +25,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Literal, Self, cast, overload, override
+from typing import TYPE_CHECKING, Literal, Self, TypedDict, Unpack, cast, overload, override
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from logging import _ExcInfoType
 
 __all__ = ["LogConfig", "TimedLogger", "config", "get_logger"]
 
@@ -222,21 +223,19 @@ config = LogConfig()
 """Singleton logging configuration for all scverse loggers."""
 
 
-class TimedLogger:
-    """Opt-in scanpy-style wrapper: ``time=``/``deep=`` keywords + a ``datetime`` return.
+class _LogKwargs(TypedDict, total=False):
+    exc_info: _ExcInfoType
+    stack_info: bool
+    stacklevel: int
+    extra: Mapping[str, object] | None
+
+
+class TimedLogger(logging.LoggerAdapter[logging.Logger]):
+    """Opt-in scanpy-style adapter: ``time=``/``deep=`` keywords + a ``datetime`` return.
 
     Sets ``time_passed``/``deep`` on the record (rendered by the shared formatter)
     and returns the current time so callers can thread it.
-    Everything else delegates to the underlying real logger.
     """
-
-    def __init__(self, logger: logging.Logger) -> None:
-        self._logger = logger
-
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401  # transparent delegation to the real logger
-        if name == "_logger":
-            raise AttributeError(name)
-        return getattr(self._logger, name)
 
     def _emit(
         self,
@@ -245,42 +244,87 @@ class TimedLogger:
         *args: object,
         time: datetime | None = None,
         deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
     ) -> datetime:
         now = datetime.now()
-        if self._logger.isEnabledFor(level):
-            extra: dict[str, object] = {}
+        if self.logger.isEnabledFor(level):
+            extra = dict(kwargs.get("extra") or {})
             if time is not None:
                 # thread the returned value (both naive); strip sub-second noise
                 extra["time_passed"] = timedelta(seconds=int((now - time).total_seconds()))
-            if deep is not None and self._logger.getEffectiveLevel() < level:
+            if deep is not None and self.logger.getEffectiveLevel() < level:
                 extra["deep"] = deep
-            # stacklevel=3: skip _emit + the level method so the call-site is the caller
-            self._logger.log(level, msg, *args, extra=extra, stacklevel=3)
+            kwargs["extra"] = extra
+            # +2: skip _emit + the level method so the call-site is the caller
+            kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 2
+            self.logger.log(level, msg, *args, **kwargs)
         return now
 
-    def debug(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+    def debug(  # type: ignore[override]  # returns a datetime instead of None
+        self,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
+    ) -> datetime:
         """Log at DEBUG; return the current time (see :class:`TimedLogger`)."""
-        return self._emit(logging.DEBUG, msg, *a, time=time, deep=deep)
+        return self._emit(logging.DEBUG, msg, *args, time=time, deep=deep, **kwargs)
 
-    def hint(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+    def hint(
+        self,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
+    ) -> datetime:
         """Log at HINT; return the current time (see :class:`TimedLogger`)."""
-        return self._emit(HINT, msg, *a, time=time, deep=deep)
+        return self._emit(HINT, msg, *args, time=time, deep=deep, **kwargs)
 
-    def info(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+    def info(  # type: ignore[override]  # returns a datetime instead of None
+        self,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
+    ) -> datetime:
         """Log at INFO; return the current time (see :class:`TimedLogger`)."""
-        return self._emit(logging.INFO, msg, *a, time=time, deep=deep)
+        return self._emit(logging.INFO, msg, *args, time=time, deep=deep, **kwargs)
 
-    def warning(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+    def warning(  # type: ignore[override]  # returns a datetime instead of None
+        self,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
+    ) -> datetime:
         """Log at WARNING; return the current time (see :class:`TimedLogger`)."""
-        return self._emit(logging.WARNING, msg, *a, time=time, deep=deep)
+        return self._emit(logging.WARNING, msg, *args, time=time, deep=deep, **kwargs)
 
-    def error(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+    def error(  # type: ignore[override]  # returns a datetime instead of None
+        self,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
+    ) -> datetime:
         """Log at ERROR; return the current time (see :class:`TimedLogger`)."""
-        return self._emit(logging.ERROR, msg, *a, time=time, deep=deep)
+        return self._emit(logging.ERROR, msg, *args, time=time, deep=deep, **kwargs)
 
-    def critical(self, msg: object, *a: object, time: datetime | None = None, deep: object = None) -> datetime:
+    def critical(  # type: ignore[override]  # returns a datetime instead of None
+        self,
+        msg: object,
+        *args: object,
+        time: datetime | None = None,
+        deep: object = None,
+        **kwargs: Unpack[_LogKwargs],
+    ) -> datetime:
         """Log at CRITICAL; return the current time (see :class:`TimedLogger`)."""
-        return self._emit(logging.CRITICAL, msg, *a, time=time, deep=deep)
+        return self._emit(logging.CRITICAL, msg, *args, time=time, deep=deep, **kwargs)
 
 
 @overload

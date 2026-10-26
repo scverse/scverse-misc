@@ -179,11 +179,20 @@ def test_all_level_methods_emit_and_return_datetime(sink: io.StringIO) -> None:
         assert isinstance(emit("msg"), datetime)
 
 
-def test_timed_logger_delegates_unknown_attrs() -> None:
+def test_timed_logger_is_adapter() -> None:
     log = get_logger("selftest", timed=True)
-    # name / getEffectiveLevel aren't defined on TimedLogger -> __getattr__ delegates
+    assert log.logger is logging.getLogger("scverse.selftest")
     assert log.name == "scverse.selftest"
-    assert log.getEffectiveLevel() == logging.getLogger("scverse.selftest").getEffectiveLevel()
+
+
+def test_timed_logger_forwards_stdlib_kwargs(sink: io.StringIO) -> None:
+    log = get_logger("selftest", timed=True)
+    try:
+        msg = "boom"
+        raise ValueError(msg)
+    except ValueError:
+        log.error("failed", exc_info=True, extra=dict(custom=1))
+    assert "ValueError: boom" in sink.getvalue()
 
 
 def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
