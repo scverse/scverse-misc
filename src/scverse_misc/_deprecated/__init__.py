@@ -121,4 +121,4 @@ class deprecated_arg:
         setattr(func, ATTR_DEPRECATED_ARG, args)
         setattr(wrapped, ATTR_DEPRECATED_ARG, args)
 
-        return cast(CallableWithDeprecatedArg[P, R], wrapped)
+        return cast("CallableWithDeprecatedArg[P, R]", wrapped)

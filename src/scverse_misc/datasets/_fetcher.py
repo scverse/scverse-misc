@@ -8,12 +8,13 @@ retries, and archive processors). ``anndata`` and ``spatialdata`` loaders ship b
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pooch.typing import Processor
 
     from ._registry import DatasetEntry, FileEntry

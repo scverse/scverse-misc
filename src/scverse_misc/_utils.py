@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import functools
-import inspect
 import sys
 import warnings
-from collections.abc import Callable, Mapping
 from functools import WRAPPER_ASSIGNMENTS
 from types import FunctionType, GenericAlias
 from typing import TYPE_CHECKING, ParamSpec, TypedDict, TypeVar, TypeVarTuple, Unpack, cast
 
 if TYPE_CHECKING:
+    import inspect
+    from collections.abc import Callable, Mapping
     from types import FrameType
 
     from pydantic.fields import FieldInfo
@@ -26,7 +26,8 @@ class _BaseOverrides(TypedDict, total=False):
 
 
 if sys.version_info >= (3, 14):
-    from annotationlib import Format
+    if TYPE_CHECKING:
+        from annotationlib import Format
 
     class Overrides(_BaseOverrides, total=False):
         __annotate__: Callable[[Format], Mapping[str, object]]

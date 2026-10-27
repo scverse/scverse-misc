@@ -78,6 +78,10 @@ envs.hatch-test.matrix = [
 envs.hatch-test.overrides.matrix.deps.env-vars = [
   { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
 ]
+# Modules needing optional deps can’t be imported for doctest collection without all features.
+envs.hatch-test.overrides.matrix.feature-set.env-vars = [
+  { value = "--doctest-ignore-import-errors", key = "PYTEST_ADDOPTS", if = [ "min", "sphinx" ] },
+]
 envs.hatch-test.overrides.matrix.feature-set.extra-dependencies = [
   { value = "sphinx-autodoc-typehints", if = [ "sphinx", "full" ] },
 ]
@@ -90,6 +94,7 @@ envs.hatch-test.overrides.matrix.feature-set.features = [
   { value = "logging", if = [ "full" ] },          # pydantic tier of the logging config
   { value = "rich", if = [ "full" ] },             # exercise the rich handler tier
 ]
+envs.hatch-test.default-args = []
 envs.hatch-test.dependency-groups = [ "dev", "test" ]
 
 [tool.ruff]
@@ -108,6 +113,7 @@ lint.select = [
   "F",      # Errors detected by Pyflakes
   "I",      # isort
   "RUF100", # Report unused noqa directives
+  "TC",     # flake8-type-checking
   "TID",    # flake8-tidy-imports
   "UP",     # pyupgrade
   "W",      # Warning detected by Pycodestyle
@@ -131,6 +137,12 @@ lint.ignore = [
 ]
 lint.per-file-ignores."docs/*" = [ "I" ]
 lint.per-file-ignores."tests/*" = [ "D" ]
+lint.flake8-type-checking.runtime-evaluated-base-classes = [
+  # ruff can’t follow inheritance across modules, so list each base explicitly
+  "pydantic.BaseModel",
+  "pydantic_settings.BaseSettings",
+  "scverse_misc.Settings",
+]
 lint.pydocstyle.convention = "google"
 
 [tool.mypy]
@@ -142,12 +154,13 @@ strict = true
 [tool.pytest]
 addopts = [
   "--import-mode=importlib", # allow using test files with same name
+  "--doctest-modules",
 ]
 filterwarnings = [
   "error",
 ]
 strict = true
-testpaths = [ "tests" ]
+testpaths = [ "src", "tests" ]
 
 [tool.coverage]
 run.source = [ "scverse_misc" ]

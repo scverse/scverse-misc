@@ -32,6 +32,7 @@ class deprecated(_deprecated):
             counted here by hand. See https://github.com/python/cpython/issues/156929.
 
     Examples:
+        >>> from scverse_misc import Deprecation, deprecated
         >>> @deprecated(Deprecation("0.2", "Use bar() instead."))
         ... def foo(baz):
         ...     pass
