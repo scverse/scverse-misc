@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import inspect
 import sys
 from collections.abc import Generator
@@ -36,19 +34,15 @@ class Settings(BaseSettings):
 
     Examples:
         >>> from typing import Annotated
-        ... from pydantic import Field
-        ... from scverse_misc import Settings
-        ...
-        ...
-        ... class MySettings(Settings, exported_object_name="settings"):
+        >>> from pydantic import Field
+        >>> from scverse_misc import Settings
+        >>> class MySettings(Settings):
         ...     eps: Annotated[float, Field(gt=0, lt=1)] = 1e-8
         ...     """Small epsilon for numerical stability."""
         ...
         ...     use_optional_feature: bool = False
         ...     """Whether to use the optional feature."""
-        ...
-        ...
-        ... settings = MySettings()
+        >>> settings = MySettings()
 
     .. seealso::
        :ref:`example-settings-class`

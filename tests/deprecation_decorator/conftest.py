@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from scverse_misc import Deprecation, deprecated
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture(
@@ -16,7 +18,7 @@ from scverse_misc import Deprecation, deprecated
     ]
 )
 def msg(request: pytest.FixtureRequest) -> str | None:
-    return cast(str | None, request.param)
+    return cast("str | None", request.param)
 
 
 @pytest.fixture(scope="session")

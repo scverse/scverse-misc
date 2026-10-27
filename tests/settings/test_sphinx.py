@@ -7,7 +7,7 @@ pytest.importorskip("pydantic_settings")
 
 import inspect
 import sys
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 if sys.version_info >= (3, 13):
     from warnings import deprecated as stdlib_deprecated
@@ -17,13 +17,15 @@ else:
 pytest.importorskip("scverse_misc.sphinx_ext")
 
 from pydantic import Field
-from pydantic.fields import FieldInfo
-from sphinx.application import Sphinx
 from sphinx.ext.autodoc import Options as AutodocOptions
-from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
 
 from scverse_misc import Deprecation, Settings, deprecated
 from scverse_misc.sphinx_ext import _process_docstring
+
+if TYPE_CHECKING:
+    from pydantic.fields import FieldInfo
+    from sphinx.application import Sphinx
+    from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
 
 
 class DummySettings(Settings):

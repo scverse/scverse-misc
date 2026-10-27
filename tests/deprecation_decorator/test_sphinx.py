@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import textwrap
 import warnings
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 import pytest
@@ -16,6 +15,8 @@ from scverse_misc import Deprecation, deprecated_arg, sphinx_ext
 from scverse_misc.constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sphinx.application import Sphinx
     from sphinx.ext.napoleon import GoogleDocstring, NumpyDocstring  # type: ignore[attr-defined]
     from sphinx.testing.util import SphinxTestApp

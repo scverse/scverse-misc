@@ -8,13 +8,15 @@ pytest.importorskip("pydantic_settings")
 import inspect
 import sys
 from contextlib import chdir, nullcontext
-from pathlib import Path
-from typing import Annotated, Literal, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Literal, get_args, get_origin
 
 from pydantic import Field, ValidationError
 from pydantic_settings import SettingsConfigDict
 
 from scverse_misc import Deprecation, Settings, deprecated
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class DummySettings(Settings):

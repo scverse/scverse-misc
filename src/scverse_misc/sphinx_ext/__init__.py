@@ -14,7 +14,6 @@ else:
 
 from pydocstring import Document, Parsed, Style, TextBlock, emit_google, emit_numpy, parse
 from pydocstring.model import Block, Docstring, Parameter, Return, Section, SectionKind
-from sphinx.ext.autodoc import Options as AutodocOptions
 
 from .._deprecated import Deprecation, deprecated_arg
 from .._extensions import _NSInfo
@@ -32,6 +31,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
+    from sphinx.ext.autodoc import Options as AutodocOptions
     from sphinx.ext.autodoc import _AutodocObjType  # type: ignore[attr-defined]
     from sphinx.util.typing import ExtensionMetadata
 

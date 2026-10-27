@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
 from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
@@ -14,6 +13,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent / "_pkgs"))
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
     from sphinx.testing.util import SphinxTestApp
 
@@ -23,7 +24,7 @@ if find_spec("sphinx"):
 
 @pytest.fixture(scope="session", params=["google", "numpy"])
 def docstring_style(request: pytest.FixtureRequest) -> Literal["google", "numpy"]:
-    return cast(Literal["google", "numpy"], request.param)
+    return cast("Literal['google', 'numpy']", request.param)
 
 
 @pytest.fixture(scope="session")
