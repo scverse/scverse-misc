@@ -35,6 +35,7 @@ _Examples:_ {ref}`example-extension-namespaces`
 
    deprecated
    deprecated_arg
+   future_abstractmethod
    Deprecation
 ```
 
