@@ -1,7 +1,7 @@
 from contextlib import suppress
 
 from ._arg_alias import arg_alias
-from ._deprecated import Deprecation, deprecated, deprecated_arg
+from ._deprecated import Deprecation, deprecated, deprecated_arg, future_abstractmethod
 from ._extensions import ExtensionNamespace, make_register_namespace_decorator
 
 __all__ = [
@@ -9,6 +9,7 @@ __all__ = [
     "make_register_namespace_decorator",
     "deprecated",
     "deprecated_arg",
+    "future_abstractmethod",
     "Deprecation",
     "arg_alias",
 ]

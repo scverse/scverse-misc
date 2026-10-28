@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-__all__ = ["deprecated", "deprecated_arg", "Deprecation"]
+__all__ = ["deprecated", "deprecated_arg", "future_abstractmethod", "Deprecation"]
 
 
 if TYPE_CHECKING:
@@ -122,3 +122,58 @@ class deprecated_arg:
         setattr(wrapped, ATTR_DEPRECATED_ARG, args)
 
         return cast("CallableWithDeprecatedArg[P, R]", wrapped)
+
+
+class future_abstractmethod:
+    """Decorator to indicate that a method will become abstract.
+
+    Until then, the decorated method is the default implementation,
+    and defining a concrete subclass that doesn’t override it emits a warning.
+
+    Args:
+        msg: The deprecation message.
+        category: The category of the warning that will be emitted when a subclass is defined.
+
+    Examples:
+        >>> from abc import ABC
+        >>> class Base(ABC):
+        ...     @future_abstractmethod(Deprecation("0.2", "Implement it to support sparse data."))
+        ...     def foo(self):
+        ...         raise NotImplementedError  # could also do something
+    """
+
+    func: object
+
+    def __init__(self, msg: Deprecation, *, category: type[Warning] = FutureWarning) -> None:
+        self.msg = msg
+        self.category = category
+
+    def __call__[F](self, func: F) -> F:
+        self.func = func
+        return cast("F", self)  # replaced by `func` again in `__set_name__`
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        setattr(owner, name, self.func)
+        warnmsg = "{cls} doesn’t implement {owner}.{name}, which will be required in the future."
+        if len(self.msg):
+            warnmsg += f" {self.msg}"
+        orig = owner.__dict__.get("__init_subclass__")  # already a classmethod
+
+        def __init_subclass__(cls: type, /, **kwargs: object) -> None:
+            __tracebackhide__ = True
+            if orig is None:
+                super(owner, cls).__init_subclass__(**kwargs)  # type: ignore[arg-type]
+            else:
+                orig.__get__(None, cls)(**kwargs)
+            impl_cls = next(c for c in cls.__mro__ if name in c.__dict__)
+            if impl_cls is owner and not _is_abstract(cls):
+                warn_outside(warnmsg.format(cls=cls.__qualname__, owner=owner.__qualname__, name=name), self.category)
+
+        owner.__init_subclass__ = classmethod(__init_subclass__)  # type: ignore[method-assign,assignment]
+
+
+def _is_abstract(cls: type) -> bool:
+    """Like :func:`inspect.isabstract`, but usable before :class:`abc.ABCMeta` has finished creating `cls`."""
+    names = {n for b in cls.__bases__ for n in getattr(b, "__abstractmethods__", ())}
+    names |= {n for n, v in cls.__dict__.items() if getattr(v, "__isabstractmethod__", False)}
+    return any(getattr(getattr(cls, n, None), "__isabstractmethod__", False) for n in names)
