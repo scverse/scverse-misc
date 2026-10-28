@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [0.1.8]
+
 ### Added
 
+- A `future_abstractmethod` decorator that marks a method as becoming abstract in the future:
+  until then, it is the default implementation, and subclasses that don’t override it emit a warning (#105)
 - A `logging` module: packages get a child of the shared `scverse` logger via `get_logger`,
   whose output users control in one place with `logging.config` (verbosity, rich output, filters).
   `get_logger(..., timed=True)` supports scanpy-style `time=` and `deep=` arguments.
@@ -152,6 +156,8 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
+[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.8...main
+[0.1.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.8
 [0.1.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.7
 [0.1.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.6
 [0.1.5]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.5
