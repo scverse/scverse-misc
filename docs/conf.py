@@ -5,15 +5,12 @@
 # https://www.sphinx-doc.org/page/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
-import shutil
 import sys
 from datetime import datetime
 from importlib.metadata import metadata
 from pathlib import Path
 
 from scverse_doc.registry import intersphinx
-from sphinxcontrib import katex
-
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "sphinx_ext_examples"))
@@ -44,7 +41,6 @@ templates_path = ["_templates"]
 extensions = [
     "scverse_doc",
     "sphinxcontrib.bibtex",
-    "sphinxcontrib.katex",
     "sphinx_autodoc_typehints",
     "sphinx_codeautolink",
     "IPython.sphinxext.ipython_console_highlighting",
@@ -65,8 +61,6 @@ intersphinx_mapping = intersphinx() | {
 
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
-
-katex_prerender = shutil.which(katex.NODEJS_BINARY) is not None
 
 nitpick_ignore: list[tuple[str, str]] = [
     # If building the documentation fails because of a missing link that is outside your control,
