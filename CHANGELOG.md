@@ -12,13 +12,8 @@ and this project adheres to [Semantic Versioning][].
 
 ### Added
 
-- `logging.config.override(verbosity=..., rich=...)` sets config fields for a `with` block
-- With `scverse-misc[settings]` installed, `logging.config` reads its starting values from the
-  `SCVERSE_VERBOSITY` and `SCVERSE_RICH` environment variables
-
-### Fixed
-
-- `logging.config._filters` no longer raises `IndexError` when the shared logger has no handlers
+- `logging.config.override(verbosity=..., rich=...)` sets config fields for a `with` block.
+  With `scverse-misc[settings]`, `logging.config` reads its starting values from `SCVERSE_VERBOSITY` and `SCVERSE_RICH` (#113)
 
 ## [0.1.8]
 
