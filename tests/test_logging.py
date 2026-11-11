@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import logging
 import sys
@@ -43,7 +44,7 @@ def sink() -> Generator[io.StringIO, None, None]:
         config.rich = old_rich
         restored = config._root.handlers[0]
         if isinstance(restored, logging.StreamHandler):
-            restored.setStream(sys.stderr)  # drop the dead StringIO the test wrote into
+            restored.setStream(mod._STDERR)  # drop the dead StringIO the test wrote into
 
 
 def test_get_logger_plain_naming() -> None:
@@ -246,3 +247,16 @@ def test_rich_property_installs_rich_handler() -> None:
     finally:
         config.rich = False
         assert config.rich is False
+
+
+def test_plain_handler_follows_current_stderr() -> None:
+    """The plain handler writes to ``sys.stderr`` as it is at emit time, not at import time."""
+    old_rich = config.rich
+    config.rich = False
+    try:
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            get_logger("selftest").warning("redirected")
+        assert "redirected" in buf.getvalue()
+    finally:
+        config.rich = old_rich
