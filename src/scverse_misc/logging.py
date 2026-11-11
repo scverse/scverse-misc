@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Literal, Self, TypedDict, Unpack, cast, overload, override
+from typing import TYPE_CHECKING, Literal, Self, TextIO, TypedDict, Unpack, cast, overload, override
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -58,17 +58,31 @@ _FORMAT = "{message}{extra}"  # rich renders the level itself; plain prefixes it
 _FORMAT_EXTRA = dict(time_passed=" ({time_passed})", deep=": {deep}")
 
 
-class _LiveStderr:
-    """Forwards to whatever ``sys.stderr`` is at write time, so redirects and pytest capture work."""
+class _StderrHandler(logging.StreamHandler[TextIO]):
+    """Writes to the current ``sys.stderr`` (like :data:`logging.lastResort`) unless a stream is set."""
 
-    def write(self, s: str) -> int:
-        return sys.stderr.write(s)
+    def __init__(self) -> None:
+        logging.Handler.__init__(self)
+        self._stream: TextIO | None = None
+        self._emitting = False
 
-    def flush(self) -> None:
-        sys.stderr.flush()
+    @property
+    def stream(self) -> TextIO:
+        return sys.stderr if self._stream is None else self._stream
 
+    @stream.setter
+    def stream(self, value: TextIO | None) -> None:
+        self._stream = value
 
-_STDERR = _LiveStderr()
+    @override
+    def emit(self, record: logging.LogRecord) -> None:
+        if self._emitting:  # stderr is routed back into a scverse logger
+            return
+        self._emitting = True
+        try:
+            super().emit(record)
+        finally:
+            self._emitting = False
 
 
 def _make_handler(use_rich: bool) -> logging.Handler:
@@ -83,7 +97,7 @@ def _make_handler(use_rich: bool) -> logging.Handler:
         handler: logging.Handler = RichHandler(console=Console(stderr=True), show_path=False, show_time=False)
         handler.setFormatter(_Formatter(_FORMAT, _FORMAT_EXTRA))
         return handler
-    handler = logging.StreamHandler(_STDERR)  # type: ignore[arg-type]
+    handler = _StderrHandler()
     handler.setFormatter(_Formatter(f"{{levelname}}: {_FORMAT}", _FORMAT_EXTRA))
     return handler
 

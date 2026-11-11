@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning][].
 ### Fixed
 
 - The plain `logging` handler writes to the current `sys.stderr` instead of the one present at import,
-  so `contextlib.redirect_stderr` and pytest’s `capsys`/`capfd` capture its output
+  so `contextlib.redirect_stderr` and pytest’s `capsys`/`capfd` capture its output (#111)
 
 ## [0.1.8]
 

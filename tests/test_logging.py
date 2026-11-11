@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import io
 import logging
 import sys
@@ -42,9 +41,7 @@ def sink() -> Generator[io.StringIO, None, None]:
                 config.remove_filter(f)
         config._root.setLevel(old_level)
         config.rich = old_rich
-        restored = config._root.handlers[0]
-        if isinstance(restored, logging.StreamHandler):
-            restored.setStream(mod._STDERR)  # drop the dead StringIO the test wrote into
+        handler.stream = None  # back to the live sys.stderr
 
 
 def test_get_logger_plain_naming() -> None:
@@ -248,14 +245,28 @@ def test_rich_property_installs_rich_handler() -> None:
         assert config.rich is False
 
 
-def test_plain_handler_follows_current_stderr() -> None:
-    """The plain handler writes to ``sys.stderr`` as it is at emit time, not at import time."""
+def test_plain_handler_follows_current_stderr(capsys: pytest.CaptureFixture[str]) -> None:
     old_rich = config.rich
     config.rich = False
     try:
-        buf = io.StringIO()
-        with contextlib.redirect_stderr(buf):
-            get_logger("selftest").warning("redirected")
-        assert "redirected" in buf.getvalue()
+        get_logger("selftest").warning("captured")
+        assert "captured" in capsys.readouterr().err
     finally:
         config.rich = old_rich
+
+
+def test_plain_handler_ignores_reentrant_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    class ToLogger(io.StringIO):
+        def write(self, s: str) -> int:
+            get_logger("selftest.stderr").warning(s)
+            return len(s)
+
+    monkeypatch.setattr(config, "rich", False)
+    monkeypatch.setattr(sys, "stderr", ToLogger())
+    get_logger("selftest").warning("hello")  # used to recurse until RecursionError
+
+
+def test_plain_handler_without_stderr(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "rich", False)
+    monkeypatch.setattr(sys, "stderr", None)  # pythonw, `2>&-`
+    config._root.handlers[0].flush()  # logging.shutdown() and dictConfig() call this
