@@ -199,7 +199,6 @@ def test_timed_logger_forwards_stdlib_kwargs(sink: io.StringIO) -> None:
 def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
     """With pydantic absent, logging falls back to the stdlib config tier."""
     import importlib.util
-    import sys
 
     root = logging.getLogger("scverse")
     saved_handlers, saved_level = list(root.handlers), root.level
