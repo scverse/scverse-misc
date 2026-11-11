@@ -246,3 +246,38 @@ def test_rich_property_installs_rich_handler() -> None:
     finally:
         config.rich = False
         assert config.rich is False
+
+
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [({"SCVERSE_VERBOSITY": "info"}, "INFO False"), ({"SCVERSE_VERBOSITY": "10", "SCVERSE_RICH": "0"}, "DEBUG False")],
+)
+def test_env_sets_starting_config(env: dict[str, str], expected: str) -> None:
+    import os
+    import subprocess
+
+    pytest.importorskip("pydantic_settings")
+    code = "from scverse_misc.logging import config; print(config.verbosity, bool(config.rich))"
+    env = {**os.environ, "SCVERSE_RICH": "0", **env}
+    out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True).stdout
+    assert out.strip() == expected
+
+
+def test_override_restores(sink: io.StringIO) -> None:
+    config.verbosity = "warning"
+    with config.override(verbosity="info"):
+        assert config.verbosity == "INFO"
+        get_logger("selftest").info("inside")
+    assert config.verbosity == "WARNING"
+    get_logger("selftest").info("outside")
+    assert "inside" in sink.getvalue() and "outside" not in sink.getvalue()
+
+
+def test_filters_without_handlers() -> None:
+    saved = list(config._root.handlers)
+    config._root.handlers.clear()
+    try:
+        assert config._filters == []
+        config.add_filter(logging.Filter())  # no handlers: nothing to attach to, no error
+    finally:
+        config._root.handlers[:] = saved

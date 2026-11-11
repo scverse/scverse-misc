@@ -20,11 +20,12 @@ so custom handlers (e.g. for structured logging) receive them unformatted.
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Literal, Self, TypedDict, Unpack, cast, overload, override
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Generator, Mapping
     from logging import _ExcInfoType
 
 __all__ = ["LogConfig", "TimedLogger", "config", "get_logger"]
@@ -90,10 +91,20 @@ try:
     _HAVE_PYDANTIC = True
 except ImportError:
     _HAVE_PYDANTIC = False
+else:
+    try:  # with pydantic-settings, fields also read SCVERSE_VERBOSITY / SCVERSE_RICH
+        from pydantic_settings import BaseSettings as _Base
+        from pydantic_settings import SettingsConfigDict as _ConfigDict
+
+        _ENV = dict(env_prefix=f"{_ROOT.upper()}_")
+    except ImportError:
+        _Base, _ConfigDict, _ENV = BaseModel, ConfigDict, {}  # type: ignore[assignment,misc]
 
 
 def _canonical_level(value: str | int) -> str:
     """Validate and normalize a level to a canonical name (e.g. ``"WARNING"``)."""
+    if isinstance(value, str) and value.isdigit():  # e.g. SCVERSE_VERBOSITY=20
+        value = int(value)
     if isinstance(value, str):
         if value.upper() not in logging.getLevelNamesMapping():
             msg = f"unknown log level name: {value!r}"
@@ -137,7 +148,20 @@ class _FilterAccess:
 
     @property
     def _filters(self) -> list[logging.Filter]:
-        return cast("list[logging.Filter]", self._root.handlers[0].filters)
+        handlers = self._root.handlers
+        return cast("list[logging.Filter]", handlers[0].filters) if handlers else []
+
+    @contextmanager
+    def override(self, **overrides: object) -> Generator[None]:
+        """Temporarily set config fields, e.g. ``with config.override(verbosity="info"): ...``."""
+        old = {name: getattr(self, name) for name in overrides}
+        try:
+            for name, value in overrides.items():
+                setattr(self, name, value)
+            yield
+        finally:
+            for name, value in reversed(old.items()):
+                setattr(self, name, value)
 
     def add_filter(self, filter: logging.Filter) -> None:
         """Attach a :class:`logging.Filter` to the shared handler (survives rich toggles)."""
@@ -152,16 +176,17 @@ class _FilterAccess:
 
 if _HAVE_PYDANTIC:
 
-    class LogConfig(BaseModel, _FilterAccess):
+    class LogConfig(_Base, _FilterAccess):
         """Central logging configuration; the singleton instance is :data:`config`.
 
         A pydantic model, so ``verbosity``/``rich`` are validated on assignment.
         Available when ``scverse-misc[logging]`` (i.e. ``pydantic``) is installed;
         without it the reduced tier keeps the same verbosity/rich/filters behavior
-        via plain properties.
+        via plain properties. With ``pydantic-settings`` also installed (``scverse-misc[settings]``),
+        the starting values are read from ``SCVERSE_VERBOSITY`` and ``SCVERSE_RICH``.
         """
 
-        model_config = ConfigDict(validate_assignment=True, validate_default=True)
+        model_config = _ConfigDict(validate_assignment=True, validate_default=True, **_ENV)
 
         verbosity: str | int = "warning"
         """Central level for all scverse loggers; a level name (``"info"``) or an int."""
