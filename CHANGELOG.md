@@ -10,11 +10,11 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
-### Changed
+### Fixed
 
-- With `logging.config.rich = None` (the default), rich output is used only when stderr is a terminal or Jupyter.
-  Elsewhere (CI logs, files, pipes) records are written as plain single lines, because rich wraps them at the
-  console width and pads every line with spaces there
+- With `logging.config.rich = None` (the default), rich is only used if it detects a terminal or Jupyter,
+  so CI logs and files get plain lines instead of wrapped, padded ones.
+  Changing the verbosity no longer replaces the handlers on the `scverse` logger (#112)
 
 ## [0.1.8]
 

@@ -27,7 +27,7 @@ def sink() -> Generator[io.StringIO, None, None]:
     old_filters = list(config._filters)
     old_rich = config.rich
     config.rich = False
-    handler = config._root.handlers[0]
+    handler = config._handler
     assert isinstance(handler, logging.StreamHandler)
     buf = io.StringIO()
     handler.setStream(buf)
@@ -41,7 +41,7 @@ def sink() -> Generator[io.StringIO, None, None]:
                 config.remove_filter(f)
         config._root.setLevel(old_level)
         config.rich = old_rich
-        restored = config._root.handlers[0]
+        restored = config._handler
         if isinstance(restored, logging.StreamHandler):
             restored.setStream(sys.stderr)  # drop the dead StringIO the test wrote into
 
@@ -158,7 +158,7 @@ def test_verbosity_rejects_unknown_level() -> None:
 
 
 def test_extras_rendered_by_formatter() -> None:
-    assert isinstance(config._root.handlers[0].formatter, mod._Formatter)
+    assert isinstance(config._handler.formatter, mod._Formatter)
 
 
 def test_hint_level_registered() -> None:
@@ -241,7 +241,7 @@ def test_rich_property_installs_rich_handler() -> None:
 
     try:
         config.rich = True
-        assert isinstance(config._root.handlers[0], RichHandler)
+        assert isinstance(config._handler, RichHandler)
         assert config.rich is True
     finally:
         config.rich = False
@@ -254,8 +254,35 @@ def test_rich_property_installs_rich_handler() -> None:
 def test_auto_rich_only_on_terminal_or_jupyter(
     monkeypatch: pytest.MonkeyPatch, *, terminal: bool, jupyter: bool, expected: bool
 ) -> None:
-    """Off a terminal rich wraps at the console width and pads lines, so auto-detect falls back to plain."""
     console = pytest.importorskip("rich.console")
     monkeypatch.setattr(console.Console, "is_terminal", property(lambda _: terminal))
     monkeypatch.setattr(console, "_is_jupyter", lambda: jupyter)  # is_jupyter is set from this in __init__
     assert mod._auto_rich() is expected
+
+
+def test_verbosity_change_keeps_handlers() -> None:
+    """Only ``rich`` changes rebuild our handler; other handlers on ``scverse`` stay."""
+    user = logging.NullHandler()
+    config._root.addHandler(user)
+    ours = config._handler
+    try:
+        config.verbosity = "info"
+        assert config._handler is ours
+        config.rich = not config.rich
+        assert user in config._root.handlers and config._handler is not ours
+    finally:
+        config._root.removeHandler(user)
+        config.rich = False
+
+
+def test_failed_rich_switch_keeps_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    config.rich = False
+    tag = logging.Filter()
+    config.add_filter(tag)
+    monkeypatch.setattr(mod, "_rich_available", lambda: False)
+    try:
+        with pytest.raises(ImportError):
+            config.rich = True
+        assert config._handler in config._root.handlers and tag in config._filters
+    finally:
+        config.remove_filter(tag)

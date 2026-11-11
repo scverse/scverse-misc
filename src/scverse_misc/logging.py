@@ -81,7 +81,7 @@ def _rich_available() -> bool:
 
 
 def _auto_rich() -> bool:
-    """Use rich if installed and stderr is a terminal or Jupyter; elsewhere (CI, files, pipes) it wraps and pads."""
+    """Use rich if installed and rich considers stderr a terminal or Jupyter."""
     if not _rich_available():
         return False
     from rich.console import Console
@@ -116,26 +116,29 @@ def _canonical_level(value: str | int) -> str:
     return name
 
 
+_handler: logging.Handler | None = None  # the one handler we manage on the ``scverse`` logger
+_handler_rich: bool | None = None  # the ``rich`` setting it was built for
+
+
 def _reinstall(verbosity: str | int, rich: bool | None) -> None:
     """Apply ``verbosity`` + ``rich`` to the shared ``scverse`` logger.
 
-    Swaps the handler only when the rich state actually changed, carrying any
-    registered filters across.
+    Rebuilds our handler only when ``rich`` changed, carrying its filters across
+    and leaving other handlers (user's, pytest's) alone.
     """
+    global _handler, _handler_rich
     root = logging.getLogger(_ROOT)
     root.propagate = False  # one handler here; don't double-log via root
     root.setLevel(_canonical_level(verbosity))
-    use_rich = _auto_rich() if rich is None else rich
-    current = root.handlers[0] if root.handlers else None
-    # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
-    if current is None or isinstance(current, logging.StreamHandler) == use_rich:
-        filters = list(current.filters) if current else []  # carry filters across
-        for h in list(root.handlers):
-            root.removeHandler(h)
-        handler = _make_handler(use_rich)
-        for f in filters:
+    if _handler is not None and rich == _handler_rich:
+        return
+    handler = _make_handler(_auto_rich() if rich is None else rich)  # may raise: build before removing
+    if _handler is not None:
+        for f in _handler.filters:
             handler.addFilter(f)
-        root.addHandler(handler)
+        root.removeHandler(_handler)
+    root.addHandler(handler)
+    _handler, _handler_rich = handler, rich
 
 
 class _FilterAccess:
@@ -146,18 +149,21 @@ class _FilterAccess:
         return logging.getLogger(_ROOT)
 
     @property
+    def _handler(self) -> logging.Handler:
+        assert _handler is not None  # installed when the config is created
+        return _handler
+
+    @property
     def _filters(self) -> list[logging.Filter]:
-        return cast("list[logging.Filter]", self._root.handlers[0].filters)
+        return cast("list[logging.Filter]", self._handler.filters)
 
     def add_filter(self, filter: logging.Filter) -> None:
         """Attach a :class:`logging.Filter` to the shared handler (survives rich toggles)."""
-        for h in self._root.handlers:
-            h.addFilter(filter)
+        self._handler.addFilter(filter)
 
     def remove_filter(self, filter: logging.Filter) -> None:
         """Detach a filter added with :meth:`add_filter`."""
-        for h in self._root.handlers:
-            h.removeFilter(filter)
+        self._handler.removeFilter(filter)
 
 
 if _HAVE_PYDANTIC:
