@@ -248,7 +248,9 @@ def test_rich_property_installs_rich_handler() -> None:
         assert config.rich is False
 
 
-@pytest.mark.parametrize(("terminal", "jupyter", "expected"), [(False, False, False), (True, False, True), (False, True, True)])
+@pytest.mark.parametrize(
+    ("terminal", "jupyter", "expected"), [(False, False, False), (True, False, True), (False, True, True)]
+)
 def test_auto_rich_only_on_terminal_or_jupyter(
     monkeypatch: pytest.MonkeyPatch, *, terminal: bool, jupyter: bool, expected: bool
 ) -> None:
