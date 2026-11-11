@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+### Changed
+
+- With `logging.config.rich = None` (the default), rich output is used only when stderr is a terminal or Jupyter.
+  Elsewhere (CI logs, files, pipes) records are written as plain single lines, because rich wraps them at the
+  console width and pads every line with spaces there
+
 ## [0.1.8]
 
 ### Added

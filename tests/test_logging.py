@@ -246,3 +246,14 @@ def test_rich_property_installs_rich_handler() -> None:
     finally:
         config.rich = False
         assert config.rich is False
+
+
+@pytest.mark.parametrize(("terminal", "jupyter", "expected"), [(False, False, False), (True, False, True), (False, True, True)])
+def test_auto_rich_only_on_terminal_or_jupyter(
+    monkeypatch: pytest.MonkeyPatch, *, terminal: bool, jupyter: bool, expected: bool
+) -> None:
+    """Off a terminal rich wraps at the console width and pads lines, so auto-detect falls back to plain."""
+    console = pytest.importorskip("rich.console")
+    monkeypatch.setattr(console.Console, "is_terminal", property(lambda _: terminal))
+    monkeypatch.setattr(console, "_is_jupyter", lambda: jupyter)  # is_jupyter is set from this in __init__
+    assert mod._auto_rich() is expected

@@ -80,6 +80,16 @@ def _rich_available() -> bool:
     return find_spec("rich") is not None
 
 
+def _auto_rich() -> bool:
+    """Use rich if installed and stderr is a terminal or Jupyter; elsewhere (CI, files, pipes) it wraps and pads."""
+    if not _rich_available():
+        return False
+    from rich.console import Console
+
+    console = Console(stderr=True)
+    return console.is_terminal or console.is_jupyter
+
+
 # The shared ``scverse`` logger is the single source of truth for live state;
 # both config tiers drive it through the helpers below. The full tier adds
 # pydantic validate-on-assignment for verbosity/rich (install scverse-misc[logging]);
@@ -115,7 +125,7 @@ def _reinstall(verbosity: str | int, rich: bool | None) -> None:
     root = logging.getLogger(_ROOT)
     root.propagate = False  # one handler here; don't double-log via root
     root.setLevel(_canonical_level(verbosity))
-    use_rich = _rich_available() if rich is None else rich
+    use_rich = _auto_rich() if rich is None else rich
     current = root.handlers[0] if root.handlers else None
     # a plain handler is a StreamHandler, rich's RichHandler is not -> cheap rich test
     if current is None or isinstance(current, logging.StreamHandler) == use_rich:
@@ -167,7 +177,7 @@ if _HAVE_PYDANTIC:
         """Central level for all scverse loggers; a level name (``"info"``) or an int."""
 
         rich: bool | None = None
-        """Force rich rendering on/off; ``None`` auto-detects whether rich is installed."""
+        """Force rich rendering on/off; ``None`` uses rich if installed and stderr is a terminal or Jupyter."""
 
         @field_validator("verbosity")
         @classmethod
