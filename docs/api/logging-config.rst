@@ -13,5 +13,6 @@ scverse\_misc.logging.config
 
 .. rubric:: Methods
 
+.. automethod:: LogConfig.override
 .. automethod:: LogConfig.add_filter
 .. automethod:: LogConfig.remove_filter

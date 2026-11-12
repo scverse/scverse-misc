@@ -20,11 +20,13 @@ so custom handlers (e.g. for structured logging) receive them unformatted.
 from __future__ import annotations
 
 import logging
+import warnings
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Literal, Self, TypedDict, Unpack, cast, overload, override
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Generator, Mapping
     from logging import _ExcInfoType
 
 __all__ = ["LogConfig", "TimedLogger", "config", "get_logger"]
@@ -90,10 +92,21 @@ try:
     _HAVE_PYDANTIC = True
 except ImportError:
     _HAVE_PYDANTIC = False
+else:
+    try:  # with pydantic-settings, the fields are read from SCVERSE_VERBOSITY / SCVERSE_RICH
+        from pydantic_settings import BaseSettings as _Base
+        from pydantic_settings import SettingsConfigDict as _ConfigDict
+
+        _ENV = _ConfigDict(env_prefix=f"{_ROOT.upper()}_", env_ignore_empty=True)
+    except ImportError:
+        _Base, _ConfigDict = BaseModel, ConfigDict  # type: ignore[assignment,misc]
+        _ENV = _ConfigDict()
 
 
 def _canonical_level(value: str | int) -> str:
     """Validate and normalize a level to a canonical name (e.g. ``"WARNING"``)."""
+    if isinstance(value, str) and value.isdecimal():  # e.g. SCVERSE_VERBOSITY=20
+        value = int(value)
     if isinstance(value, str):
         if value.upper() not in logging.getLevelNamesMapping():
             msg = f"unknown log level name: {value!r}"
@@ -139,6 +152,18 @@ class _FilterAccess:
     def _filters(self) -> list[logging.Filter]:
         return cast("list[logging.Filter]", self._root.handlers[0].filters)
 
+    @contextmanager
+    def override(self, **overrides: object) -> Generator[None]:
+        """Temporarily set config fields, e.g. ``with config.override(verbosity="info"): ...``."""
+        old = {name: self._root.level if name == "verbosity" else getattr(self, name) for name in overrides}
+        try:
+            for name, value in overrides.items():
+                setattr(self, name, value)
+            yield
+        finally:
+            for name, value in reversed(old.items()):
+                setattr(self, name, value)
+
     def add_filter(self, filter: logging.Filter) -> None:
         """Attach a :class:`logging.Filter` to the shared handler (survives rich toggles)."""
         for h in self._root.handlers:
@@ -152,7 +177,7 @@ class _FilterAccess:
 
 if _HAVE_PYDANTIC:
 
-    class LogConfig(BaseModel, _FilterAccess):
+    class LogConfig(_Base, _FilterAccess):
         """Central logging configuration; the singleton instance is :data:`config`.
 
         A pydantic model, so ``verbosity``/``rich`` are validated on assignment.
@@ -161,7 +186,7 @@ if _HAVE_PYDANTIC:
         via plain properties.
         """
 
-        model_config = ConfigDict(validate_assignment=True, validate_default=True)
+        model_config = _ConfigDict(**_ENV, validate_assignment=True, validate_default=True)
 
         verbosity: str | int = "warning"
         """Central level for all scverse loggers; a level name (``"info"``) or an int."""
@@ -215,8 +240,20 @@ else:
             _reinstall(self.verbosity, self._rich)
 
 
-config = LogConfig()
-"""Singleton logging configuration for all scverse loggers."""
+def _load_config() -> LogConfig:
+    try:
+        return LogConfig()
+    except (ValueError, ImportError) as e:  # bad SCVERSE_* values must not break importing packages
+        warnings.warn(f"Ignoring SCVERSE_VERBOSITY/SCVERSE_RICH: {e}", RuntimeWarning, stacklevel=2)
+        return LogConfig(verbosity="warning", rich=None)
+
+
+config = _load_config()
+"""Singleton logging configuration for all scverse loggers.
+
+With ``pydantic-settings`` installed (``scverse-misc[settings]``), its starting values
+are read from the ``SCVERSE_VERBOSITY`` and ``SCVERSE_RICH`` environment variables.
+"""
 
 
 class _LogKwargs(TypedDict, total=False):

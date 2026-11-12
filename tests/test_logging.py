@@ -23,27 +23,18 @@ if TYPE_CHECKING:
 @pytest.fixture
 def sink() -> Generator[io.StringIO, None, None]:
     """Force the plain handler, capture its output, and restore global state after."""
-    old_level = config._root.level
     old_filters = list(config._filters)
-    old_rich = config.rich
-    config.rich = False
-    handler = config._root.handlers[0]
-    assert isinstance(handler, logging.StreamHandler)
     buf = io.StringIO()
-    handler.setStream(buf)
-    config.verbosity = "debug"
-    try:
-        yield buf
-    finally:
-        # drop any filters a test added, then restore level + rich (reinstalls a clean handler)
-        for f in list(config._filters):
-            if f not in old_filters:
+    with config.override(rich=False, verbosity="debug"):
+        handler = config._root.handlers[0]
+        assert isinstance(handler, logging.StreamHandler)
+        old_stream = handler.setStream(buf)
+        try:
+            yield buf
+        finally:
+            handler.setStream(old_stream)
+            for f in set(config._filters) - set(old_filters):
                 config.remove_filter(f)
-        config._root.setLevel(old_level)
-        config.rich = old_rich
-        restored = config._root.handlers[0]
-        if isinstance(restored, logging.StreamHandler):
-            restored.setStream(sys.stderr)  # drop the dead StringIO the test wrote into
 
 
 def test_get_logger_plain_naming() -> None:
@@ -143,7 +134,8 @@ def test_verbosity_get_set_by_name_and_int() -> None:
     assert plain.isEnabledFor(logging.DEBUG)
 
 
-def test_verbosity_default_is_canonical() -> None:
+def test_verbosity_default_is_canonical(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SCVERSE_VERBOSITY", raising=False)
     # pydantic tier must canonicalize its default too (regression: used to report lowercase "warning")
     assert mod.LogConfig().verbosity == "WARNING"
     config.verbosity = "warning"  # construction re-applied to the shared logger; leave a known state
@@ -198,7 +190,6 @@ def test_timed_logger_forwards_stdlib_kwargs(sink: io.StringIO) -> None:
 def test_reduced_tier_without_pydantic(monkeypatch: pytest.MonkeyPatch) -> None:
     """With pydantic absent, logging falls back to the stdlib config tier."""
     import importlib.util
-    import sys
 
     root = logging.getLogger("scverse")
     saved_handlers, saved_level = list(root.handlers), root.level
@@ -246,3 +237,49 @@ def test_rich_property_installs_rich_handler() -> None:
     finally:
         config.rich = False
         assert config.rich is False
+
+
+@pytest.mark.parametrize(
+    ("env", "verbosity", "rich"),
+    [
+        ({"SCVERSE_VERBOSITY": "info", "SCVERSE_RICH": "0"}, "INFO", False),
+        ({"SCVERSE_VERBOSITY": "10", "SCVERSE_RICH": "1"}, "DEBUG", True),
+        ({"SCVERSE_VERBOSITY": "", "SCVERSE_RICH": ""}, "WARNING", None),
+    ],
+)
+def test_env_sets_starting_config(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str], verbosity: str, rich: bool | None
+) -> None:
+    pytest.importorskip("pydantic_settings")
+    pytest.importorskip("rich")
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    try:
+        cfg = mod._load_config()
+        assert (cfg.verbosity, cfg.rich) == (verbosity, rich)
+    finally:
+        config.verbosity = config.verbosity  # re-apply the shared config over what `cfg` installed
+
+
+def test_env_invalid_warns(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("pydantic_settings")
+    monkeypatch.setenv("SCVERSE_VERBOSITY", "3")  # scanpy scale, not a logging level
+    try:
+        with pytest.warns(RuntimeWarning, match="SCVERSE_VERBOSITY"):
+            assert mod._load_config().verbosity == "WARNING"
+    finally:
+        config.verbosity = config.verbosity
+
+
+def test_override_restores(sink: io.StringIO) -> None:
+    config.verbosity = "warning"
+    with config.override(verbosity="info"):
+        assert config.verbosity == "INFO"
+        get_logger("selftest").info("inside")
+    assert config.verbosity == "WARNING"
+    get_logger("selftest").info("outside")
+    assert "inside" in sink.getvalue() and "outside" not in sink.getvalue()
+    config._root.setLevel(logging.INFO)  # set outside the config
+    with config.override(verbosity="error"):
+        pass
+    assert config._root.level == logging.INFO
