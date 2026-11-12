@@ -10,21 +10,21 @@
 
 ```{eval-rst}
 .. autosummary::
-    :toctree: generated
+   :toctree: generated
 
-    make_register_namespace_decorator
+   make_register_namespace_decorator
 ```
 
 Types used by the former:
 
 ```{eval-rst}
 .. autosummary::
-    :toctree: generated
+   :toctree: generated
 
-    ExtensionNamespace
+   ExtensionNamespace
 ```
 
-_Examples:_ {ref}`example-extension-namespaces`
+*Examples:* {ref}`example-extension-namespaces`
 
 (deprecations)=
 ## Deprecations
@@ -39,7 +39,7 @@ _Examples:_ {ref}`example-extension-namespaces`
    Deprecation
 ```
 
-_Examples:_ {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
+*Examples:* {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
 
 (settings)=
 ## Settings
@@ -56,7 +56,7 @@ _Examples:_ {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-f
    Settings
 ```
 
-_Examples:_ {ref}`example-settings-class`
+*Examples:* {ref}`example-settings-class`
 
 (arg_alias)=
 ## Argument value aliasing
@@ -65,7 +65,7 @@ _Examples:_ {ref}`example-settings-class`
 .. autosummary::
    :toctree: generated
 
-    arg_alias
+   arg_alias
 ```
 
 (logging)=
@@ -74,10 +74,10 @@ _Examples:_ {ref}`example-settings-class`
 ```{eval-rst}
 .. automodule:: scverse_misc.logging
 .. autosummary::
-    :toctree: generated
+   :toctree: generated
 
-    get_logger
-    TimedLogger
+   get_logger
+   TimedLogger
 ```
 
 Configuration:
@@ -99,14 +99,14 @@ Configuration:
 ```{eval-rst}
 .. automodule:: scverse_misc.datasets
 .. autosummary::
-    :toctree: generated
+   :toctree: generated
 
-    DatasetEntry
-    FileEntry
-    parse_registry
-    fetch
-    register_loader
-    available_loaders
-    Loader
-    DownloadCB
+   DatasetEntry
+   FileEntry
+   parse_registry
+   fetch
+   register_loader
+   available_loaders
+   Loader
+   DownloadCB
 ```
