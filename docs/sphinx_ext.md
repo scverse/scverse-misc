@@ -18,6 +18,7 @@ If you have custom autosummary templates in your package, they will still be use
 # Examples
 
 (example-deprecating-a-function)=
+
 ## Deprecating a function
 
 ### source
@@ -33,6 +34,7 @@ If you have custom autosummary templates in your package, they will still be use
 ```
 
 (example-deprecating-a-function-argument)=
+
 ## Deprecating a function argument
 
 ### source
@@ -48,6 +50,7 @@ If you have custom autosummary templates in your package, they will still be use
 ```
 
 (example-settings-class)=
+
 ## Settings class
 
 ### source
@@ -66,6 +69,7 @@ If you have custom autosummary templates in your package, they will still be use
 ```
 
 (example-extension-namespaces)=
+
 ## Extension namespaces
 
 ### source
