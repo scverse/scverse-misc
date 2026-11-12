@@ -6,6 +6,7 @@
 ```
 
 (extensions)=
+
 ## Extensions
 
 ```{eval-rst}
@@ -27,6 +28,7 @@ Types used by the former:
 _Examples:_ {ref}`example-extension-namespaces`
 
 (deprecations)=
+
 ## Deprecations
 
 ```{eval-rst}
@@ -42,6 +44,7 @@ _Examples:_ {ref}`example-extension-namespaces`
 _Examples:_ {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-function-argument`, {ref}`example-settings-class`
 
 (settings)=
+
 ## Settings
 
 ```{eval-rst}
@@ -59,6 +62,7 @@ _Examples:_ {ref}`example-deprecating-a-function`, {ref}`example-deprecating-a-f
 _Examples:_ {ref}`example-settings-class`
 
 (arg_alias)=
+
 ## Argument value aliasing
 
 ```{eval-rst}
@@ -69,6 +73,7 @@ _Examples:_ {ref}`example-settings-class`
 ```
 
 (logging)=
+
 ## Logging (`scverse_misc.logging`)
 
 ```{eval-rst}
@@ -94,6 +99,7 @@ Configuration:
 ```
 
 (datasets)=
+
 ## Datasets (`scverse_misc.datasets`)
 
 ```{eval-rst}
