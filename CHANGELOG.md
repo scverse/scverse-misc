@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+### Fixed
+
+- With `logging.config.rich = None` (the default), rich is only used if it detects a terminal or Jupyter,
+  so CI logs and files get plain lines instead of wrapped, padded ones.
+  Changing the verbosity no longer replaces the handlers on the `scverse` logger (#112)
+
 ## [0.1.8]
 
 ### Added
