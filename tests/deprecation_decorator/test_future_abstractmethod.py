@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import pytest
 
 from scverse_misc import Deprecation, future_abstractmethod
+from scverse_misc.constants import ATTR_FUTURE_ABSTRACT
 
 
 class Base(ABC):
@@ -59,3 +60,8 @@ def test_abc_behavior() -> None:
             def bar(self) -> None: ...
 
     assert Concrete().foo() == 1
+
+
+def test_marker() -> None:
+    assert getattr(Base.foo, ATTR_FUTURE_ABSTRACT) == "Do it."
+    assert getattr(Base.foo, ATTR_FUTURE_ABSTRACT).version_deprecated == "0.2"

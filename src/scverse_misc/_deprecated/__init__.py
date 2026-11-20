@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, LiteralString, Protocol, cast
 from warnings import warn
 
 from .._utils import caller_skip_prefixes, warn_outside
-from ..constants import ATTR_DEPRECATED_ARG
+from ..constants import ATTR_DEPRECATED_ARG, ATTR_FUTURE_ABSTRACT
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -153,6 +153,7 @@ class future_abstractmethod:
         return cast("F", self)  # replaced by `func` again in `__set_name__`
 
     def __set_name__(self, owner: type, name: str) -> None:
+        setattr(self.func, ATTR_FUTURE_ABSTRACT, self.msg)  # e.g. for the Sphinx extension
         setattr(owner, name, self.func)
         warnmsg = "{cls} doesn’t implement {owner}.{name}, which will be required in the future."
         if len(self.msg):

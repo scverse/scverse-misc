@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+## [0.1.9]
+
+### Added
+
+- `scverse_misc.sphinx_ext` documents members marked with `future_abstractmethod` even if their name starts with `_`,
+  since subclasses have to implement them. The marker is available as `constants.ATTR_FUTURE_ABSTRACT`. (#117)
+
 ## [0.1.8]
 
 ### Added
@@ -19,7 +26,7 @@ and this project adheres to [Semantic Versioning][].
 - A `logging` module: packages get a child of the shared `scverse` logger via `get_logger`,
   whose output users control in one place with `logging.config` (verbosity, rich output, filters).
   `get_logger(..., timed=True)` supports scanpy-style `time=` and `deep=` arguments.
-  Install `scverse-misc[logging]` for validated config fields.
+  Install `scverse-misc[logging]` for validated config fields. (#46)
 
 ## [0.1.7]
 
@@ -156,7 +163,8 @@ and this project adheres to [Semantic Versioning][].
 
 - Initial release
 
-[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.8...main
+[Unreleased]: https://github.com/scverse/scverse-misc/compare/v0.1.9...main
+[0.1.9]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.9
 [0.1.8]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.8
 [0.1.7]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.7
 [0.1.6]: https://github.com/scverse/scverse-misc/releases/tag/v0.1.6
