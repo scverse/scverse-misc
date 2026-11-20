@@ -18,7 +18,7 @@ from pydocstring.model import Block, Docstring, Parameter, Return, Section, Sect
 from .._deprecated import Deprecation, deprecated_arg
 from .._extensions import _NSInfo
 from .._utils import get_packagename, type_str
-from ..constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG, ATTR_NAMESPACE
+from ..constants import ATTR_DEPRECATED, ATTR_DEPRECATED_ARG, ATTR_FUTURE_ABSTRACT, ATTR_NAMESPACE
 
 try:
     from pydantic_core import PydanticUndefined
@@ -46,6 +46,7 @@ def setup(app: Sphinx) -> ExtensionMetadata:  # noqa: D103
     app.setup_extension("scverse_doc.napoleon")
     # To go first, we use a lower number than napoleon (which uses the default, 500)
     app.connect("autodoc-process-docstring", _process_docstring, priority=100)
+    app.connect("autodoc-skip-member", _keep_future_abstract)
 
     return {"version": version("scverse-misc"), "parallel_read_safe": True}
 
@@ -68,6 +69,16 @@ def _process_docstring(
                 _process_deprecated_args(app, args, lines)
         case "data" if isinstance(obj, Settings):
             _process_settings_object(obj, name, lines)
+
+
+def _keep_future_abstract(
+    app: Sphinx, what: _AutodocObjType, name: str, obj: object, skip: bool, options: AutodocOptions
+) -> bool | None:
+    r"""Document `future_abstractmethod`\ s even if they’re private, since subclasses must implement them.
+
+    Autosummary also treats members as public when this returns `False`.
+    """
+    return False if isinstance(getattr(obj, ATTR_FUTURE_ABSTRACT, None), Deprecation) else None
 
 
 def _emit_docstring(

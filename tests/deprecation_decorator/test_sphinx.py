@@ -108,6 +108,19 @@ def docstring(request: pytest.FixtureRequest, docstring_style: Literal["google",
             pytest.fail(f"Unknown docstring style {typ}")
 
 
+def test_keep_future_abstract(app: Sphinx) -> None:
+    from scverse_misc import future_abstractmethod
+
+    class Base:
+        @future_abstractmethod(Deprecation("0.2"))
+        def _hook(self) -> None: ...
+
+        def _private(self) -> None: ...
+
+    assert sphinx_ext._keep_future_abstract(app, "method", "_hook", Base._hook, True, {}) is False  # type: ignore[arg-type]
+    assert sphinx_ext._keep_future_abstract(app, "method", "_private", Base._private, True, {}) is None  # type: ignore[arg-type]
+
+
 def test_deprecation_decorator(
     app: Sphinx, deprecated_func: Callable[..., int], docstring: str | None, msg: str | None
 ) -> None:
